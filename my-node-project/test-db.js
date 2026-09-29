@@ -1,4 +1,5 @@
 const connection = require('./db');
+const { sql } = require('./query');
 
 async function testDatabase() {
     try {
@@ -6,7 +7,7 @@ async function testDatabase() {
 
         console.log('Kết nối MySQL thành công!');
 
-        const [rows] = await conn.query('SELECT 1 AS test');
+        const [rows] = await conn.query(sql);
 
         console.log(rows);
 
