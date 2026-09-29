@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: phenikaa-db
+    environment:
+      POSTGRES_DB: phenikaa_gis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d phenikaa_gis"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: phenikaa-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@phenikaa.edu.vn
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Optional: OSRM for routing (Phase 4)
+  # osrm:
+  #   image: osrm/osrm-backend:latest
+  #   container_name: phenikaa-osrm
+  #   volumes:
+  #     - ./data/osrm:/data
+  #   ports:
+  #     - "5000:5000"
+  #   command: ["osrm-routed", "--algorithm", "mld", "/data/phenikaa.osrm"]
+
+volumes:
+  pgdata:
+  pgadmin-data:
