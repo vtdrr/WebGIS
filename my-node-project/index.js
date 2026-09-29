@@ -1,4 +1,5 @@
 const express = require('express');
+const connection = require('./db');
 
 const app = express();
 
@@ -31,6 +32,26 @@ app.post('/api/post', (req, res) => {
 });
 
 const port = 3000;
+
+app.get('/api/dbconn', async (req, res) => {
+    try {
+        const conn = await connection;
+
+        const [rows] = await conn.query('SELECT 1 AS test');
+
+        res.json({
+            message: 'Kết nối database thành công!',
+            data: rows
+        });
+    } catch (error) {
+        console.error(error.message);
+
+        res.status(500).json({
+            message: 'Kết nối database thất bại!',
+            error: error.message
+        });
+    }
+});
 
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
