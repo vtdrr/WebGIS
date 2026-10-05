@@ -144,6 +144,19 @@ export interface RoutingParams {
   geometries?: 'geojson' | 'polyline' | 'polyline6';
 }
 
+export interface RoutingStep {
+  name: string;
+  distance: number;
+  duration: number;
+  geometry: GeoJSON.LineString | string;
+  maneuver: {
+    type: string;
+    location: [number, number];
+    modifier?: string;
+  };
+  instruction?: string;
+}
+
 export interface RoutingResponse {
   routes: Array<{
     geometry: GeoJSON.LineString | string;
@@ -154,7 +167,7 @@ export interface RoutingResponse {
     legs: Array<{
       distance: number;
       duration: number;
-      steps?: unknown[];
+      steps?: RoutingStep[];
       summary: string;
     }>;
   }>;
@@ -166,6 +179,8 @@ export interface RoutingResponse {
   meta: {
     mode: string;
     took_ms: number;
+    fallback?: boolean;
+    nodes?: number;
   };
 }
 

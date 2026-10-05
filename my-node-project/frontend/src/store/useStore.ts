@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { Category, Place, PlaceQueryParams, MapState } from '../types';
+import type { Category, Place, PlaceQueryParams, MapState, RoutingResponse, RoutingParams } from '../types';
 
 interface AppState {
   // Categories
@@ -47,17 +47,30 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
 
+  // Map reset
+  resetToken: number;
+  resetMapView: () => void;
+
   // Filters
   activeCategoryFilter: string | null;
   setActiveCategoryFilter: (code: string | null) => void;
 
   // Routing
-  routingFrom: Place | null;
+  routingFrom: { lat: number; lng: number; name: string } | null;
   routingTo: Place | null;
-  routingResult: unknown | null;
+  routingResult: RoutingResponse | null;
   routingLoading: boolean;
-  setRoutingFrom: (place: Place | null) => void;
+  routingError: string | null;
+  routingMode: RoutingParams['mode'];
+  setRoutingFrom: (point: { lat: number; lng: number; name: string } | null) => void;
   setRoutingTo: (place: Place | null) => void;
+  setRoutingMode: (mode: RoutingParams['mode']) => void;
+  fetchRoute: (
+    from: { lat: number; lng: number; name: string },
+    to: { lat: number; lng: number; name: string },
+    mode: RoutingParams['mode'],
+  ) => Promise<void>;
+  startRoutingTo: (place: Place, userPosition?: { lat: number; lng: number } | null) => Promise<void>;
   clearRouting: () => void;
 }
 
@@ -155,6 +168,10 @@ export const useStore = create<AppState>()(
     toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
     setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
+    // Map reset
+    resetToken: 0,
+    resetMapView: () => set((state) => ({ resetToken: state.resetToken + 1 })),
+
     // Filters
     activeCategoryFilter: null,
     setActiveCategoryFilter: (code) => {
@@ -167,11 +184,69 @@ export const useStore = create<AppState>()(
     routingTo: null,
     routingResult: null,
     routingLoading: false,
-    setRoutingFrom: (place) => set({ routingFrom: place }),
+    routingError: null,
+    routingMode: 'walk',
+    setRoutingFrom: (point) => set({ routingFrom: point }),
     setRoutingTo: (place) => set({ routingTo: place }),
-    clearRouting: () => set({ routingFrom: null, routingTo: null, routingResult: null }),
+    setRoutingMode: (mode) => {
+      set({ routingMode: mode });
+      const { routingFrom, routingTo } = get();
+      if (routingFrom && routingTo) {
+        get().fetchRoute(routingFrom, placeToRoutePoint(routingTo), mode);
+      }
+    },
+    fetchRoute: async (from, to, mode) => {
+      await fetchRouteImpl(set, from, to, mode);
+    },
+    startRoutingTo: async (place, userPosition) => {
+      const from = userPosition
+        ? { lat: userPosition.lat, lng: userPosition.lng, name: 'Vị trí của tôi' }
+        : { lat: 21.2872, lng: 105.7825, name: 'Tâm khuôn viên' };
+      const to = placeToRoutePoint(place);
+      set({
+        routingFrom: from,
+        routingTo: place,
+        routingError: null,
+      });
+      await get().fetchRoute(from, to, get().routingMode);
+    },
+    clearRouting: () => set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null }),
   }))
 );
+
+// Convert a Place to a route endpoint (uses its geometry when available)
+function placeToRoutePoint(place: Place): { lat: number; lng: number; name: string } {
+  const coords = place.geom_point?.coordinates;
+  if (coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+    return { lat: coords[1], lng: coords[0], name: place.name_vi };
+  }
+  return { lat: 21.2872, lng: 105.7825, name: place.name_vi };
+}
+
+// Route fetching helper
+async function fetchRouteImpl(
+  set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
+  from: { lat: number; lng: number; name: string },
+  to: { lat: number; lng: number; name: string },
+  mode: RoutingParams['mode'],
+): Promise<void> {
+  set({ routingLoading: true, routingError: null });
+  try {
+    const { routingApi } = await import('../services/api');
+    const result = await routingApi.getDirections({
+      from: `${from.lat},${from.lng}`,
+      to: `${to.lat},${to.lng}`,
+      mode,
+    });
+    set({ routingResult: result, routingLoading: false });
+  } catch (err) {
+    set({
+      routingError: err instanceof Error ? err.message : 'Không thể tính tuyến đường',
+      routingLoading: false,
+      routingResult: null,
+    });
+  }
+}
 
 // Selectors for performance
 export const selectCategories = (state: AppState) => state.categories;

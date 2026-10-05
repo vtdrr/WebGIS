@@ -8,7 +8,8 @@ import 'leaflet.markercluster';
 import L from 'leaflet';
 import type { Place, Category } from '../../types';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM, PHENIKAA_BOUNDS } from '../../types';
-import { useMapSync, useMarkerIcon } from '../../hooks/useMap';
+import { useMapSync, createMarkerIcon } from '../../hooks/useMap';
+import { useStore } from '../../store/useStore';
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -17,6 +18,16 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
+
+// Escape user content inserted into popup HTML
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // =============================================
 // Base Map Component
@@ -36,17 +47,65 @@ export function BaseMap({ children }: { children: React.ReactNode }) {
       boxZoom={true}
       keyboard={true}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxZoom={20}
-        crossOrigin=""
-      />
-      <LayersControl position="topright" />
+      <LayersControl position="topright">
+        <LayersControl.BaseLayer checked name="Bản đồ">
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={20}
+            crossOrigin=""
+          />
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Vệ tinh">
+          <TileLayer
+            attribution="Imagery &copy; Esri, Maxar, Earthstar Geographics"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            maxZoom={20}
+            crossOrigin=""
+          />
+        </LayersControl.BaseLayer>
+      </LayersControl>
       {children}
       <MapSync />
+      <MapFlyTo />
+      <MapResetController />
     </MapContainer>
   );
+}
+
+// =============================================
+// Fly to selected place when it changes
+// =============================================
+function MapFlyTo() {
+  const map = useMap();
+  const selectedPlace = useStore((s) => s.selectedPlace);
+
+  useEffect(() => {
+    if (selectedPlace?.geom_point?.coordinates) {
+      const [lng, lat] = selectedPlace.geom_point.coordinates;
+      if (Number.isFinite(lng) && Number.isFinite(lat)) {
+        map.flyTo([lat, lng], 18, { duration: 0.8 });
+      }
+    }
+  }, [selectedPlace, map]);
+
+  return null;
+}
+
+// =============================================
+// Reset map view when resetToken changes
+// =============================================
+function MapResetController() {
+  const map = useMap();
+  const resetToken = useStore((s) => s.resetToken);
+
+  useEffect(() => {
+    if (resetToken > 0) {
+      map.flyTo(PHENIKAA_CENTER, PHENIKAA_ZOOM, { duration: 0.6 });
+    }
+  }, [resetToken, map]);
+
+  return null;
 }
 
 // =============================================
@@ -113,7 +172,7 @@ export function PlacesLayer({ places, categories, selectedPlaceId, onPlaceClick 
         const category = place.category_code ? categoryMap.current.get(place.category_code) : null;
         const color = category?.color || '#3388ff';
         const iconName = category?.icon || 'map-pin';
-        const MarkerIcon = useMarkerIcon(color, iconName);
+        const MarkerIcon = createMarkerIcon(color, iconName);
         const isSelected = place.id === selectedPlaceId;
 
         const marker = L.marker(
@@ -125,10 +184,10 @@ export function PlacesLayer({ places, categories, selectedPlaceId, onPlaceClick 
           <div style="min-width: 200;">
             <div style="display: flex; align-items: center; gap: 8; margin-bottom: 8;">
               <div style="width: 10px; height: 10px; border-radius: 50%; background: ${color}; flex-shrink: 0;"></div>
-              <strong style="font-size: 14px; color: #1f2937;">${place.name_vi}</strong>
+              <strong style="font-size: 14px; color: #1f2937;">${escapeHtml(place.name_vi)}</strong>
             </div>
-            ${place.code ? `<div style="font-size: 12px; color: #6b7280; margin-bottom: 4;">Mã: ${place.code}</div>` : ''}
-            <div style="font-size: 12px; color: #6b7280; margin-bottom: 8;">${place.category_name_vi || place.category_code || 'Unknown'}</div>
+            ${place.code ? `<div style="font-size: 12px; color: #6b7280; margin-bottom: 4;">Mã: ${escapeHtml(place.code)}</div>` : ''}
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 8;">${escapeHtml(place.category_name_vi || place.category_code || 'Unknown')}</div>
             ${place.floor !== null ? `<div style="font-size: 12px; color: #6b7280; margin-bottom: 8;">Tầng ${place.floor}</div>` : ''}
             <button class="popup-detail-btn" data-place-id="${place.id}" style="width: 100%; padding: 6px 12px; background: ${color}; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer;">
               Xem chi tiết
@@ -146,7 +205,7 @@ export function PlacesLayer({ places, categories, selectedPlaceId, onPlaceClick 
         clusterRef.current = null;
       }
     };
-  }, [map, places, selectedPlaceId]);
+  }, [map, places, selectedPlaceId, onPlaceClick]);
 
   // Handle popup button clicks
   useEffect(() => {

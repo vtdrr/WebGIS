@@ -25,6 +25,14 @@ async function seed(): Promise<void> {
   `);
   console.log('🗺️ Spatial data:', spatialCheck.rows[0]);
 
+  // Verify routing graph
+  const pathCheck = await query(`
+    SELECT COUNT(*) as total_paths,
+           COUNT(DISTINCT source_code) as connected_places
+    FROM campus_paths
+  `);
+  console.log('🧭 Routing graph:', pathCheck.rows[0]);
+
   console.log('✅ Seed verification completed');
 }
 

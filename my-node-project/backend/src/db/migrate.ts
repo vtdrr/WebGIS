@@ -24,22 +24,26 @@ async function runMigrations(): Promise<void> {
     for (let i = 0; i < statements.length; i++) {
       const stmt = statements[i];
       const trimmed = stmt.trim();
-      if (!trimmed || trimmed.startsWith('--')) continue;
+      if (!trimmed) continue;
+      // Strip leading comment lines so statements preceded by comments still run
+      const withoutLeadingComments = trimmed.replace(/^(--[^\n]*\n\s*)+/, '').trim();
+      if (!withoutLeadingComments) continue;
+      const stmtToRun = withoutLeadingComments;
 
       try {
-        await client.query(trimmed);
+        await client.query(stmtToRun);
         if (config.NODE_ENV === 'development') {
-          console.log(`  ✓ [${i+1}/${statements.length}]`, trimmed.substring(0, 80).replace(/\n/g, ' ') + (trimmed.length > 80 ? '...' : ''));
+          console.log(`  ✓ [${i+1}/${statements.length}]`, stmtToRun.substring(0, 80).replace(/\n/g, ' ') + (stmtToRun.length > 80 ? '...' : ''));
         }
       } catch (err: any) {
         // Ignore "already exists" errors for idempotency
         if (err.code === '42710' || err.code === '42P07' || err.code === '23505' || err.code === '42701') {
           if (config.NODE_ENV === 'development') {
-            console.log(`  ⊘ [${i+1}/${statements.length}] Skipped (already exists):`, trimmed.substring(0, 80));
+            console.log(`  ⊘ [${i+1}/${statements.length}] Skipped (already exists):`, stmtToRun.substring(0, 80));
           }
         } else {
           console.error(`  ❌ [${i+1}/${statements.length}] FAILED:`, err.message);
-          console.error('     SQL:', trimmed.substring(0, 200));
+          console.error('     SQL:', stmtToRun.substring(0, 200));
           throw err;
         }
       }

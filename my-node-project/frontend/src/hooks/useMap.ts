@@ -61,46 +61,43 @@ export function useMapSync() {
   });
 }
 
-// Custom marker icon factory
-export function useMarkerIcon(categoryColor: string, categoryIcon?: string) {
-  return useMemo(() => {
-    // Create a custom div icon with the category color
-    const iconHtml = `
+// Custom marker icon factory (plain function - safe to call in loops)
+export function createMarkerIcon(categoryColor: string, categoryIcon?: string) {
+  const iconHtml = `
+    <div style="
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 50% 50% 0;
+      background: ${categoryColor};
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border: 3px solid white;
+    ">
       <div style="
-        width: 32px;
-        height: 32px;
-        border-radius: 50% 50% 50% 0;
-        background: ${categoryColor};
-        transform: rotate(-45deg);
+        transform: rotate(45deg);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        border: 3px solid white;
+        width: 100%;
+        height: 100%;
+        color: white;
+        font-size: 14px;
       ">
-        <div style="
-          transform: rotate(45deg);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          color: white;
-          font-size: 14px;
-        ">
-          ${categoryIcon || '📍'}
-        </div>
+        ${categoryIcon || '📍'}
       </div>
-    `;
+    </div>
+  `;
 
-    return L.divIcon({
-      html: iconHtml,
-      className: 'custom-marker',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -32],
-    });
-  }, [categoryColor, categoryIcon]);
+  return L.divIcon({
+    html: iconHtml,
+    className: 'custom-marker',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+  });
 }
 
 // Cluster icon factory

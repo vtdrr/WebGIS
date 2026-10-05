@@ -75,26 +75,37 @@ export const createCategorySchema = z.object({
 
 export const updateCategorySchema = createCategorySchema.partial();
 
-export const categoryResponseSchema = {
-  type: 'object',
-  required: ['id', 'code', 'name_vi', 'name_en', 'icon', 'color', 'sort_order', 'is_active', 'created_at', 'updated_at'],
-  properties: {
-    id: { type: 'integer' },
-    code: { type: 'string' },
-    name_vi: { type: 'string' },
-    name_en: { type: ['string', 'null'] },
-    icon: { type: ['string', 'null'] },
-    color: { type: 'string' },
-    sort_order: { type: 'integer' },
-    is_active: { type: 'boolean' },
-    created_at: { type: 'string' },
-    updated_at: { type: 'string' },
-  },
-};
+export interface CategoryResponse {
+  id: number;
+  code: string;
+  name_vi: string;
+  name_en: string | null;
+  icon: string | null;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export const categoryListResponseSchema = {
   type: 'array',
-  items: categoryResponseSchema,
+  items: {
+    type: 'object',
+    required: ['id', 'code', 'name_vi', 'name_en', 'icon', 'color', 'sort_order', 'is_active', 'created_at', 'updated_at'],
+    properties: {
+      id: { type: 'integer' },
+      code: { type: 'string' },
+      name_vi: { type: 'string' },
+      name_en: { type: ['string', 'null'] },
+      icon: { type: ['string', 'null'] },
+      color: { type: 'string' },
+      sort_order: { type: 'integer' },
+      is_active: { type: 'boolean' },
+      created_at: { type: 'string' },
+      updated_at: { type: 'string' },
+    },
+  },
 };
 
 // =============================================
@@ -262,6 +273,8 @@ export const routingResponseSchema = z.object({
   meta: z.object({
     mode: z.string(),
     took_ms: z.number(),
+    fallback: z.boolean().optional(),
+    nodes: z.number().optional(),
   }),
 });
 
@@ -276,7 +289,6 @@ export type NearbyQuery = z.infer<typeof nearbyQuerySchema>;
 
 export type CreateCategory = z.infer<typeof createCategorySchema>;
 export type UpdateCategory = z.infer<typeof updateCategorySchema>;
-export type CategoryResponse = z.infer<typeof categoryResponseSchema>;
 
 export type CreatePlace = z.infer<typeof createPlaceSchema>;
 export type UpdatePlace = z.infer<typeof updatePlaceSchema>;

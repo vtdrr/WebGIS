@@ -170,6 +170,181 @@ FROM categories c WHERE c.code = 'library'
 ON CONFLICT (code) DO NOTHING;
 
 -- =============================================
+-- Additional sample places (campus network)
+-- =============================================
+INSERT INTO places (category_id, code, name_vi, name_en, geom_point, floor, opening_hours, attributes)
+SELECT c.id, 'CAN-MAIN', 'Căng tin trường', 'Campus Canteen',
+  ST_SetSRID(ST_MakePoint(105.7816, 21.2864), 4326)::geometry(Point, 4326),
+  NULL,
+  '{"mon-fri": "06:30-21:00", "sat": "07:00-20:00", "sun": "07:00-18:00"}'::jsonb,
+  '{"capacity": 300, "has_wifi": true, "has_ac": true}'::jsonb
+FROM categories c WHERE c.code = 'canteen'
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO places (category_id, code, name_vi, name_en, geom_point, opening_hours, attributes)
+SELECT c.id, 'ADM-MAIN', 'Phòng hành chính', 'Administration Office',
+  ST_SetSRID(ST_MakePoint(105.7829, 21.2879), 4326)::geometry(Point, 4326),
+  '{"mon-fri": "07:30-17:00", "sat": "closed", "sun": "closed"}'::jsonb,
+  '{"has_elevator": true, "has_wifi": true, "has_ac": true}'::jsonb
+FROM categories c WHERE c.code = 'admin'
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO places (category_id, code, name_vi, name_en, geom_point, opening_hours, attributes)
+SELECT c.id, 'DOR-A', 'Ký túc xá A', 'Dormitory A',
+  ST_SetSRID(ST_MakePoint(105.7846, 21.2886), 4326)::geometry(Point, 4326),
+  '{"mon-sun": "00:00-24:00"}'::jsonb,
+  '{"floors": 6, "has_elevator": true, "has_wifi": true}'::jsonb
+FROM categories c WHERE c.code = 'dormitory'
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO places (category_id, code, name_vi, name_en, geom_point, attributes)
+SELECT c.id, 'PK-MAIN', 'Bãi đỗ xe chính', 'Main Parking',
+  ST_SetSRID(ST_MakePoint(105.7808, 21.2881), 4326)::geometry(Point, 4326),
+  '{"capacity": 200, "wheelchair_access": true}'::jsonb
+FROM categories c WHERE c.code = 'parking'
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO places (category_id, code, name_vi, name_en, geom_point, opening_hours, attributes)
+SELECT c.id, 'SPT-MAIN', 'Sân thể thao', 'Sports Field',
+  ST_SetSRID(ST_MakePoint(105.7842, 21.2893), 4326)::geometry(Point, 4326),
+  '{"mon-sun": "05:00-22:00"}'::jsonb,
+  '{"wheelchair_access": true}'::jsonb
+FROM categories c WHERE c.code = 'sports'
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO places (category_id, code, name_vi, name_en, geom_point, attributes)
+SELECT c.id, 'GATE-S', 'Cổng Nam (cổng chính)', 'South Gate (Main Gate)',
+  ST_SetSRID(ST_MakePoint(105.7821, 21.2853), 4326)::geometry(Point, 4326),
+  '{"mon-sun": "00:00-24:00"}'::jsonb
+FROM categories c WHERE c.code = 'gate'
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO places (category_id, code, name_vi, name_en, geom_point, attributes)
+SELECT c.id, 'GATE-N', 'Cổng Bắc', 'North Gate',
+  ST_SetSRID(ST_MakePoint(105.7836, 21.2897), 4326)::geometry(Point, 4326),
+  '{"mon-sun": "05:00-23:00"}'::jsonb
+FROM categories c WHERE c.code = 'gate'
+ON CONFLICT (code) DO NOTHING;
+
+-- =============================================
+-- Campus paths (routing graph)
+-- =============================================
+CREATE TABLE IF NOT EXISTS campus_paths (
+  id SERIAL PRIMARY KEY,
+  source_code VARCHAR(50) NOT NULL REFERENCES places(code),
+  target_code VARCHAR(50) NOT NULL REFERENCES places(code),
+  distance_m NUMERIC NOT NULL,
+  path_name VARCHAR(100),
+  geom GEOMETRY(LineString, 4326) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (source_code, target_code)
+);
+
+COMMENT ON TABLE campus_paths IS 'Đồ thị đường đi trong khuôn viên (dùng cho routing)';
+
+CREATE INDEX IF NOT EXISTS idx_campus_paths_geom ON campus_paths USING GIST (geom);
+
+-- Walking paths between campus landmarks (distances computed automatically)
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'GATE-S', 'PK-MAIN',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường vào cổng Nam',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'GATE-S' AND tp.code = 'PK-MAIN'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'PK-MAIN', 'A1-MAIN',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường nội bộ khu A',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'PK-MAIN' AND tp.code = 'A1-MAIN'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'A1-MAIN', 'CAN-MAIN',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường nội bộ khu A',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'A1-MAIN' AND tp.code = 'CAN-MAIN'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'CAN-MAIN', 'GATE-S',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường nội bộ khu A',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'CAN-MAIN' AND tp.code = 'GATE-S'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'A1-MAIN', 'LIB-MAIN',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường ra thư viện',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'A1-MAIN' AND tp.code = 'LIB-MAIN'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'A1-MAIN', 'ADM-MAIN',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường nội bộ',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'A1-MAIN' AND tp.code = 'ADM-MAIN'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'ADM-MAIN', 'LIB-MAIN',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường nội bộ',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'ADM-MAIN' AND tp.code = 'LIB-MAIN'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'ADM-MAIN', 'DOR-A',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường lên ký túc xá',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'ADM-MAIN' AND tp.code = 'DOR-A'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'LIB-MAIN', 'DOR-A',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường lên ký túc xá',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'LIB-MAIN' AND tp.code = 'DOR-A'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'DOR-A', 'SPT-MAIN',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường ra sân thể thao',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'DOR-A' AND tp.code = 'SPT-MAIN'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)
+SELECT 'SPT-MAIN', 'GATE-N',
+  ST_Distance(sp.geom_point::geography, tp.geom_point::geography),
+  'Đường ra cổng Bắc',
+  ST_MakeLine(sp.geom_point, tp.geom_point)
+FROM places sp, places tp
+WHERE sp.code = 'SPT-MAIN' AND tp.code = 'GATE-N'
+ON CONFLICT (source_code, target_code) DO NOTHING;
+
+-- =============================================
 -- Helpful views
 -- =============================================
 CREATE OR REPLACE VIEW v_places_with_category AS

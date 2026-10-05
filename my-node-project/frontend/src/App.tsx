@@ -3,13 +3,40 @@
 // =============================================
 
 import React, { useEffect } from 'react';
-import { BaseMap } from './components/Map/MapView';
-import { SearchBar } from './components/UI/PlaceDetailPanel';
-import { CategoryFilter } from './components/UI/PlaceDetailPanel';
-import { PlaceCard } from './components/UI/PlaceDetailPanel';
-import { PlaceDetailPanel } from './components/UI/PlaceDetailPanel';
+import {
+  BaseMap,
+  PlacesLayer,
+  BuildingsLayer,
+  UserLocation,
+  RoutingLayer,
+} from './components/Map/MapView';
+import {
+  SearchBar,
+  CategoryFilter,
+  PlaceCard,
+  PlaceDetailPanel,
+} from './components/UI/PlaceDetailPanel';
+import { useGeolocation } from './hooks/useMap';
 import { useStore } from './store/useStore';
 import type { Place } from './types';
+
+function formatDistance(meters: number): string {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)} giây`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} phút`;
+  const h = Math.floor(minutes / 60);
+  return `${h} giờ ${minutes % 60} phút`;
+}
+
+const MODE_LABELS: Array<{ value: 'walk' | 'bike' | 'wheelchair'; label: string; icon: string }> = [
+  { value: 'walk', label: 'Đi bộ', icon: '🚶' },
+  { value: 'bike', label: 'Xe đạp', icon: '🚴' },
+  { value: 'wheelchair', label: 'Xe lăn', icon: '♿' },
+];
 
 function App() {
   const {
@@ -21,6 +48,8 @@ function App() {
     placesQuery,
     fetchPlaces,
     loadMorePlaces,
+    // Categories
+    categories,
     // Selected place
     selectedPlace,
     setSelectedPlace,
@@ -29,12 +58,27 @@ function App() {
     // UI
     sidebarOpen,
     toggleSidebar,
+    // Map reset
+    resetMapView,
+    // Routing
+    routingFrom,
+    routingTo,
+    routingResult,
+    routingLoading,
+    routingError,
+    routingMode,
+    setRoutingMode,
+    startRoutingTo,
+    clearRouting,
   } = useStore();
 
   // Initialize data
   useEffect(() => {
     fetchPlaces();
   }, [fetchPlaces]);
+
+  // Geolocation
+  const { position, error: geoError, loading: geoLoading, requestLocation } = useGeolocation();
 
   // Handle place selection
   const handlePlaceClick = (place: Place) => {
@@ -48,7 +92,7 @@ function App() {
 
   const handleDirections = () => {
     if (!selectedPlace) return;
-    console.log('Get directions to:', selectedPlace);
+    startRoutingTo(selectedPlace, position);
   };
 
   // Load more places on scroll
@@ -231,19 +275,25 @@ function App() {
       {/* Map */}
       <main style={{ flex: 1, position: 'relative', minWidth: 0 }}>
         <BaseMap>
+          <PlacesLayer
+            places={places}
+            categories={categories}
+            selectedPlaceId={selectedPlace?.id ?? null}
+            onPlaceClick={handlePlaceClick}
+          />
+          <BuildingsLayer places={places} categories={categories} />
+          {position && <UserLocation position={position} />}
+          {routingResult?.routes?.[0]?.geometry &&
+            typeof routingResult.routes[0].geometry !== 'string' && (
+              <RoutingLayer route={routingResult.routes[0].geometry} />
+            )}
+
+          {/* Floating action buttons */}
           <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Location button */}
             <button
-              onClick={() => {
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      console.log('User location:', pos.coords.latitude, pos.coords.longitude);
-                    },
-                    (err) => console.error('Geolocation error:', err)
-                  );
-                }
-              }}
+              onClick={() => requestLocation()}
+              disabled={geoLoading}
               style={{
                 width: 40,
                 height: 40,
@@ -257,9 +307,10 @@ function App() {
                 justifyContent: 'center',
                 color: '#374151',
                 transition: 'background 0.1s',
+                opacity: geoLoading ? 0.6 : 1,
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
               title="Vị trí của tôi"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -270,8 +321,7 @@ function App() {
 
             {/* Reset view button */}
             <button
-              onClick={() => {
-              }}
+              onClick={() => resetMapView()}
               style={{
                 width: 40,
                 height: 40,
@@ -286,8 +336,8 @@ function App() {
                 color: '#374151',
                 transition: 'background 0.1s',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
               title="Khôi phục bản đồ"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -296,6 +346,183 @@ function App() {
               </svg>
             </button>
           </div>
+
+          {/* Geolocation error toast */}
+          {geoError && (
+            <div style={{
+              position: 'absolute',
+              top: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 50,
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
+              padding: '8px 16px',
+              borderRadius: 8,
+              fontSize: 13,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}>
+              Không lấy được vị trí: {geoError}
+            </div>
+          )}
+
+          {/* Route info panel */}
+          {(routingResult || routingLoading || routingError || routingTo) && (
+            <div style={{
+              position: 'absolute',
+              bottom: 24,
+              right: 16,
+              zIndex: 50,
+              width: 340,
+              maxWidth: 'calc(100vw - 32px)',
+              background: 'white',
+              borderRadius: 12,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+              border: '1px solid #e5e7eb',
+              overflow: 'hidden',
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '12px 16px',
+                borderBottom: '1px solid #e5e7eb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#1f2937' }}>Chỉ đường</span>
+                <button
+                  onClick={clearRouting}
+                  style={{
+                    width: 28, height: 28, borderRadius: 6, background: '#f3f4f6',
+                    border: 'none', color: '#6b7280', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                  aria-label="Đóng chỉ đường"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div style={{ padding: '12px 16px' }}>
+                {/* Mode selector */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                  {MODE_LABELS.map((m) => (
+                    <button
+                      key={m.value}
+                      onClick={() => setRoutingMode(m.value)}
+                      disabled={!routingFrom || !routingTo}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        borderRadius: 6,
+                        border: routingMode === m.value ? '1px solid #3b82f6' : '1px solid #e5e7eb',
+                        background: routingMode === m.value ? '#eff6ff' : 'white',
+                        color: routingMode === m.value ? '#1d4ed8' : '#6b7280',
+                        fontSize: 12,
+                        fontWeight: routingMode === m.value ? 600 : 400,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                        opacity: !routingFrom || !routingTo ? 0.5 : 1,
+                      }}
+                    >
+                      <span>{m.icon}</span>
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* From - To */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12, fontSize: 13 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
+                    <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {routingFrom?.name ?? '...'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                    <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {routingTo?.name_vi ?? '...'}
+                    </span>
+                  </div>
+                </div>
+
+                {routingLoading && (
+                  <div style={{ padding: '12px 0', textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
+                    Đang tính tuyến đường...
+                  </div>
+                )}
+
+                {routingError && (
+                  <div style={{ padding: '10px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#dc2626', fontSize: 12 }}>
+                    {routingError}
+                  </div>
+                )}
+
+                {routingResult && routingResult.routes?.[0] && (
+                  <div>
+                    <div style={{
+                      display: 'flex',
+                      gap: 12,
+                      padding: '10px 12px',
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: 8,
+                      marginBottom: 10,
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#166534' }}>Quãng đường</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#14532d' }}>
+                          {formatDistance(routingResult.routes[0].distance)}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#166534' }}>Thời gian</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#14532d' }}>
+                          {formatDuration(routingResult.routes[0].duration)}
+                        </div>
+                      </div>
+                      {routingResult.meta?.fallback && (
+                        <div style={{ fontSize: 10, color: '#92400e', background: '#fef3c7', padding: '2px 6px', borderRadius: 4, alignSelf: 'flex-start' }}>
+                          Đường chim bay
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Steps */}
+                    {routingResult.routes[0].legs?.[0]?.steps && routingResult.routes[0].legs[0].steps.length > 1 && (
+                      <div style={{ maxHeight: 180, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {routingResult.routes[0].legs[0].steps!.map((step, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: '#374151' }}>
+                            <div style={{
+                              width: 18, height: 18, borderRadius: '50%',
+                              background: '#f3f4f6', color: '#6b7280',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 10, fontWeight: 600, flexShrink: 0, marginTop: 1,
+                            }}>
+                              {i + 1}
+                            </div>
+                            <div>
+                              <div>{step.instruction}</div>
+                              <div style={{ color: '#9ca3af', fontSize: 11 }}>
+                                {formatDistance(step.distance)} • {formatDuration(step.duration)}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </BaseMap>
       </main>
 

@@ -5,7 +5,8 @@ export class PlacesService {
   private readonly SELECT_FIELDS = `
     p.id, p.category_id, p.code, p.name_vi, p.name_en,
     p.description_vi, p.description_en,
-    p.geom_point, p.geom_polygon,
+    ST_AsGeoJSON(p.geom_point)::json as geom_point,
+    ST_AsGeoJSON(p.geom_polygon)::json as geom_polygon,
     p.floor, p.opening_hours, p.contact_phone, p.contact_email,
     p.images, p.attributes,
     p.created_at, p.updated_at,
@@ -32,7 +33,7 @@ export class PlacesService {
     }
 
     if (q) {
-      conditions.push(`p.search_tsv @@ plainto_tsquery('vietnamese', $${paramIndex++})`);
+      conditions.push(`p.search_tsv @@ plainto_tsquery('simple', $${paramIndex++})`);
       values.push(q);
     }
 
@@ -113,7 +114,7 @@ export class PlacesService {
   async findNearby(lat: number, lng: number, radius: number, limit: number, category?: string): Promise<PlaceResponse[]> {
     let sql = `
       SELECT ${this.SELECT_FIELDS},
-             ST_Distance(p.geom_point, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) as distance_m
+             ST_Distance(p.geom_point::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) as distance_m
       ${this.FROM_CLAUSE}
       WHERE p.geom_point IS NOT NULL
         AND ST_DWithin(p.geom_point::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
@@ -205,17 +206,35 @@ export class PlacesService {
         values.push(wkt);
       }
 
+      // PostgreSQL's main query cannot see table changes made by a data-modifying
+      // CTE, so we SELECT directly FROM the CTE and join categories there
       const result = await client.query<PlaceResponse>(`
-        INSERT INTO places (
-          category_id, code, name_vi, name_en, description_vi, description_en,
-          geom_point, geom_polygon, floor, opening_hours, contact_phone, contact_email,
-          images, attributes
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, ${geomPointSql}, ${geomPolygonSql}, $7, $8, $9, $10, $11, $12
+        WITH new_place AS (
+          INSERT INTO places (
+            category_id, code, name_vi, name_en, description_vi, description_en,
+            geom_point, geom_polygon, floor, opening_hours, contact_phone, contact_email,
+            images, attributes
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, ${geomPointSql}, ${geomPolygonSql},
+            $7, COALESCE($8, 'null'::jsonb), $9, $10,
+            COALESCE($11, '[]'::jsonb), COALESCE($12, '{}'::jsonb)
+          )
+          RETURNING id, category_id, code, name_vi, name_en, description_vi, description_en,
+            geom_point, geom_polygon, floor, opening_hours, contact_phone, contact_email,
+            images, attributes, created_at, updated_at
         )
-        RETURNING ${this.SELECT_FIELDS}
-        ${this.FROM_CLAUSE}
-        WHERE p.id = LASTVAL()
+        SELECT
+          np.id, np.category_id, np.code, np.name_vi, np.name_en,
+          np.description_vi, np.description_en,
+          ST_AsGeoJSON(np.geom_point)::json as geom_point,
+          ST_AsGeoJSON(np.geom_polygon)::json as geom_polygon,
+          np.floor, np.opening_hours,
+          np.contact_phone, np.contact_email, np.images, np.attributes,
+          np.created_at, np.updated_at,
+          c.code as category_code, c.name_vi as category_name_vi,
+          c.name_en as category_name_en, c.icon as category_icon, c.color as category_color
+        FROM new_place np
+        LEFT JOIN categories c ON np.category_id = c.id
       `, values);
 
       await client.query('COMMIT');
@@ -286,12 +305,28 @@ export class PlacesService {
       if (fields.length === 0) return this.findById(id);
 
       values.push(id);
+      // PostgreSQL's main query cannot see table changes made by a data-modifying
+      // CTE, so we SELECT directly FROM the CTE and join categories there
       const result = await client.query<PlaceResponse>(`
-        UPDATE places SET ${fields.join(', ')}, updated_at = now()
-        WHERE id = $${paramIndex}
-        RETURNING ${this.SELECT_FIELDS}
-        ${this.FROM_CLAUSE}
-        WHERE p.id = $${paramIndex}
+        WITH updated_place AS (
+          UPDATE places SET ${fields.join(', ')}, updated_at = now()
+          WHERE id = $${paramIndex}
+          RETURNING id, category_id, code, name_vi, name_en, description_vi, description_en,
+            geom_point, geom_polygon, floor, opening_hours, contact_phone, contact_email,
+            images, attributes, created_at, updated_at
+        )
+        SELECT
+          up.id, up.category_id, up.code, up.name_vi, up.name_en,
+          up.description_vi, up.description_en,
+          ST_AsGeoJSON(up.geom_point)::json as geom_point,
+          ST_AsGeoJSON(up.geom_polygon)::json as geom_polygon,
+          up.floor, up.opening_hours,
+          up.contact_phone, up.contact_email, up.images, up.attributes,
+          up.created_at, up.updated_at,
+          c.code as category_code, c.name_vi as category_name_vi,
+          c.name_en as category_name_en, c.icon as category_icon, c.color as category_color
+        FROM updated_place up
+        LEFT JOIN categories c ON up.category_id = c.id
       `, values);
 
       await client.query('COMMIT');

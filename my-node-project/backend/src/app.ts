@@ -6,7 +6,7 @@ import sensible from '@fastify/sensible';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import { z } from 'zod';
-import { zodTypeProvider } from 'fastify-type-provider-zod';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { config } from './config/index.js';
 import { categoriesRoutes } from './modules/categories/categories.routes.js';
 import { placesRoutes } from './modules/places/places.routes.js';
@@ -25,7 +25,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     ajv: {
       customOptions: { coerceTypes: 'array' },
     },
-  }).withTypeProvider<zodTypeProvider>();
+  }).withTypeProvider<ZodTypeProvider>();
 
   // Core plugins
   await app.register(sensible);
@@ -41,11 +41,26 @@ export async function buildApp(): Promise<FastifyInstance> {
     timeWindow: config.RATE_LIMIT_WINDOW_MS,
   });
 
-  // Swagger/OpenAPI - disabled for now due to schema validation issues
-  // if (config.SWAGGER_ENABLED) {
-  //   await app.register(swagger, { ... });
-  //   await app.register(swaggerUI, { ... });
-  // }
+  // Swagger/OpenAPI documentation
+  if (config.SWAGGER_ENABLED) {
+    await app.register(swagger, {
+      openapi: {
+        openapi: '3.0.0',
+        info: {
+          title: 'Phenikaa WebGIS API',
+          description: 'API quản lý và tra cứu thông tin địa điểm trong khuôn viên Trường Đại học Phenikaa',
+          version: '1.0.0',
+        },
+        servers: [{ url: `http://localhost:${config.PORT}` }],
+      },
+    });
+    await app.register(swaggerUI, {
+      routePrefix: '/docs',
+      uiConfig: {
+        docExpansion: 'list',
+      },
+    });
+  }
 
   // Health check
   app.get('/health', {
