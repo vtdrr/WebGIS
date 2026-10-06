@@ -25,6 +25,7 @@ const _env = envSchema.safeParse(process.env);
 
 if (!_env.success) {
   console.error('❌ Invalid environment variables:', _env.error.flatten().fieldErrors);
+  console.error('👉 Tạo file backend/.env từ mẫu: cp .env.example .env');
   process.exit(1);
 }
 

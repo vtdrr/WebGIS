@@ -40,6 +40,7 @@ docker compose up -d db
 # 2. Chạy backend
 cd backend
 npm install
+cp .env.example .env      # Windows: copy .env.example .env
 npm run db:migrate        # đồng bộ schema (idempotent)
 npm run db:seed           # kiểm tra dữ liệu
 npm run dev               # dev mode (tsx watch) — http://localhost:3000
