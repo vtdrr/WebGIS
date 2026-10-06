@@ -4,6 +4,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { Place } from '../../types';
 
 // =============================================
@@ -17,14 +18,14 @@ export function SearchBar() {
   const debouncedQueryRef = useRef(query);
 
   const { searchQuery, setSearchQuery, searchPlaces, searchResults, searchLoading, clearSearch } = useStore(
-    (state) => ({
+    useShallow((state) => ({
       searchQuery: state.searchQuery,
       setSearchQuery: state.setSearchQuery,
       searchPlaces: state.searchPlaces,
       searchResults: state.searchResults,
       searchLoading: state.searchLoading,
       clearSearch: state.clearSearch,
-    })
+    }))
   );
 
   // Sync local state with store
@@ -239,12 +240,12 @@ export function SearchBar() {
 // =============================================
 export function CategoryFilter() {
   const { categories, activeCategoryFilter, setActiveCategoryFilter, fetchCategories } = useStore(
-    (state) => ({
+    useShallow((state) => ({
       categories: state.categories,
       activeCategoryFilter: state.activeCategoryFilter,
       setActiveCategoryFilter: state.setActiveCategoryFilter,
       fetchCategories: state.fetchCategories,
-    })
+    }))
   );
 
   useEffect(() => {

@@ -1,6 +1,50 @@
 import { query, getClient } from '../../db/pool.js';
 import type { CreatePlace, UpdatePlace, PlaceQuery, PlaceResponse, PlaceListResponse } from '../common/schemas.js';
 
+/** Error with HTTP status, handled by the global error handler */
+function badRequest(message: string): Error {
+  return Object.assign(new Error(message), { statusCode: 400 });
+}
+
+/** Validate & normalize a GeoJSON Point coordinate pair to [lng, lat] */
+function normalizePoint(point: CreatePlace['geom_point']): [number, number] {
+  const coords = Array.isArray(point) ? point : point?.coordinates;
+  if (!Array.isArray(coords) || coords.length < 2) {
+    throw badRequest('geom_point must be a [lng, lat] pair or GeoJSON Point');
+  }
+  const [lng, lat] = coords;
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+    throw badRequest('geom_point coordinates must be finite numbers');
+  }
+  return [lng, lat];
+}
+
+/** Validate GeoJSON Polygon rings and build WKT (auto-closes open rings) */
+function polygonToWKT(coordinates: unknown): string {
+  if (!Array.isArray(coordinates) || coordinates.length === 0) {
+    throw badRequest('geom_polygon.coordinates must be a non-empty array of rings');
+  }
+  const wktRings = coordinates.map((ring) => {
+    if (!Array.isArray(ring) || ring.length < 4) {
+      throw badRequest('Each polygon ring needs at least 4 positions');
+    }
+    const points = ring.map((p) => {
+      if (!Array.isArray(p) || p.length < 2) {
+        throw badRequest('Each polygon position must be a [lng, lat] pair');
+      }
+      const [lng, lat] = p;
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+        throw badRequest('Polygon coordinates must be finite numbers');
+      }
+      return `${lng} ${lat}`;
+    });
+    // Auto-close the ring if it is not closed
+    if (points[0] !== points[points.length - 1]) points.push(points[0]);
+    return `(${points.join(',')})`;
+  });
+  return `POLYGON(${wktRings.join(',')})`;
+}
+
 export class PlacesService {
   private readonly SELECT_FIELDS = `
     p.id, p.category_id, p.code, p.name_vi, p.name_en,
@@ -38,7 +82,11 @@ export class PlacesService {
     }
 
     if (bbox) {
-      const [minLng, minLat, maxLng, maxLat] = bbox.split(',').map(Number);
+      const parts = bbox.split(',').map(Number);
+      if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) {
+        throw badRequest('bbox must be "minLng,minLat,maxLng,maxLat" with numeric values');
+      }
+      const [minLng, minLat, maxLng, maxLat] = parts;
       conditions.push(`
         (p.geom_point && ST_MakeEnvelope($${paramIndex}, $${paramIndex+1}, $${paramIndex+2}, $${paramIndex+3}, 4326)
          OR p.geom_polygon && ST_MakeEnvelope($${paramIndex}, $${paramIndex+1}, $${paramIndex+2}, $${paramIndex+3}, 4326))
@@ -190,18 +238,13 @@ export class PlacesService {
       ];
 
       if (data.geom_point) {
-        const coords = Array.isArray(data.geom_point)
-          ? data.geom_point
-          : data.geom_point.coordinates;
+        const [lng, lat] = normalizePoint(data.geom_point);
         geomPointSql = `ST_SetSRID(ST_MakePoint($${values.length + 1}, $${values.length + 2}), 4326)`;
-        values.push(coords[0], coords[1]); // lng, lat
+        values.push(lng, lat);
       }
 
       if (data.geom_polygon) {
-        const rings = data.geom_polygon.coordinates;
-        const wkt = `POLYGON(${rings.map(ring =>
-          '(' + ring.map(([lng, lat]) => `${lng} ${lat}`).join(',') + ')'
-        ).join(',')})`;
+        const wkt = polygonToWKT(data.geom_polygon.coordinates);
         geomPolygonSql = `ST_GeomFromText($${values.length + 1}, 4326)`;
         values.push(wkt);
       }
@@ -248,61 +291,59 @@ export class PlacesService {
   }
 
   async update(id: string, data: UpdatePlace): Promise<PlaceResponse | null> {
+    // Build the field list first — no transaction is needed for validation
+    // or for a no-op update, so we never leave an open transaction behind.
+    const fields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    const fieldMap: Record<string, string> = {
+      category_id: 'category_id',
+      code: 'code',
+      name_vi: 'name_vi',
+      name_en: 'name_en',
+      description_vi: 'description_vi',
+      description_en: 'description_en',
+      floor: 'floor',
+      opening_hours: 'opening_hours',
+      contact_phone: 'contact_phone',
+      contact_email: 'contact_email',
+      images: 'images',
+      attributes: 'attributes',
+    };
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined && key in fieldMap) {
+        fields.push(`${fieldMap[key]} = $${paramIndex++}`);
+        if (key === 'opening_hours' || key === 'images' || key === 'attributes') {
+          values.push(JSON.stringify(value));
+        } else {
+          values.push(value);
+        }
+      }
+    }
+
+    // Handle geometry updates separately
+    if (data.geom_point) {
+      const [lng, lat] = normalizePoint(data.geom_point);
+      fields.push(`geom_point = ST_SetSRID(ST_MakePoint($${paramIndex}, $${paramIndex + 1}), 4326)`);
+      values.push(lng, lat);
+      paramIndex += 2;
+    }
+
+    if (data.geom_polygon) {
+      const wkt = polygonToWKT(data.geom_polygon.coordinates);
+      fields.push(`geom_polygon = ST_GeomFromText($${paramIndex}, 4326)`);
+      values.push(wkt);
+      paramIndex++;
+    }
+
+    // Nothing to update — skip the transaction entirely
+    if (fields.length === 0) return this.findById(id);
+
     const client = await getClient();
     try {
       await client.query('BEGIN');
-
-      const fields: string[] = [];
-      const values: any[] = [];
-      let paramIndex = 1;
-
-      const fieldMap: Record<string, string> = {
-        category_id: 'category_id',
-        code: 'code',
-        name_vi: 'name_vi',
-        name_en: 'name_en',
-        description_vi: 'description_vi',
-        description_en: 'description_en',
-        floor: 'floor',
-        opening_hours: 'opening_hours',
-        contact_phone: 'contact_phone',
-        contact_email: 'contact_email',
-        images: 'images',
-        attributes: 'attributes',
-      };
-
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== undefined && key in fieldMap) {
-          fields.push(`${fieldMap[key]} = $${paramIndex++}`);
-          if (key === 'opening_hours' || key === 'images' || key === 'attributes') {
-            values.push(JSON.stringify(value));
-          } else {
-            values.push(value);
-          }
-        }
-      }
-
-      // Handle geometry updates separately
-      if (data.geom_point) {
-        const coords = Array.isArray(data.geom_point)
-          ? data.geom_point
-          : data.geom_point.coordinates;
-        fields.push(`geom_point = ST_SetSRID(ST_MakePoint($${paramIndex}, $${paramIndex + 1}), 4326)`);
-        values.push(coords[0], coords[1]);
-        paramIndex += 2;
-      }
-
-      if (data.geom_polygon) {
-        const rings = data.geom_polygon.coordinates;
-        const wkt = `POLYGON(${rings.map(ring =>
-          '(' + ring.map(([lng, lat]) => `${lng} ${lat}`).join(',') + ')'
-        ).join(',')})`;
-        fields.push(`geom_polygon = ST_GeomFromText($${paramIndex}, 4326)`);
-        values.push(wkt);
-        paramIndex++;
-      }
-
-      if (fields.length === 0) return this.findById(id);
 
       values.push(id);
       // PostgreSQL's main query cannot see table changes made by a data-modifying
@@ -348,7 +389,7 @@ export class PlacesService {
     let sql = `
       SELECT jsonb_build_object(
         'type', 'FeatureCollection',
-        'features', jsonb_agg(
+        'features', COALESCE(jsonb_agg(
           jsonb_build_object(
             'type', 'Feature',
             'id', id,
@@ -364,7 +405,7 @@ export class PlacesService {
               'opening_hours', opening_hours
             )
           )
-        )
+        ), '[]'::jsonb)
       ) as geojson
       FROM v_places_with_category
       WHERE geom_point IS NOT NULL OR geom_polygon IS NOT NULL

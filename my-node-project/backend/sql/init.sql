@@ -363,7 +363,7 @@ CREATE OR REPLACE VIEW v_places_geojson AS
 SELECT
   jsonb_build_object(
     'type', 'FeatureCollection',
-    'features', jsonb_agg(
+    'features', COALESCE(jsonb_agg(
       jsonb_build_object(
         'type', 'Feature',
         'id', id,
@@ -379,7 +379,7 @@ SELECT
           'opening_hours', opening_hours
         )
       )
-    )
+    ), '[]'::jsonb)
   ) as geojson
 FROM v_places_with_category
 WHERE geom_point IS NOT NULL OR geom_polygon IS NOT NULL;

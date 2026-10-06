@@ -61,8 +61,31 @@ const pointBody = {
   ],
 };
 
+const polygonBody = {
+  type: 'object',
+  required: ['type', 'coordinates'],
+  properties: {
+    type: { const: 'Polygon' },
+    // array of rings, each ring is an array of [lng, lat] positions
+    coordinates: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'array',
+        minItems: 4,
+        items: {
+          type: 'array',
+          items: { type: 'number' },
+          minItems: 2,
+        },
+      },
+    },
+  },
+};
+
 const placeBodySchema = {
   type: 'object',
+  additionalProperties: false,
   required: ['category_id', 'name_vi'],
   properties: {
     category_id: { type: 'integer', minimum: 1 },
@@ -72,14 +95,7 @@ const placeBodySchema = {
     description_vi: { type: 'string' },
     description_en: { type: 'string' },
     geom_point: pointBody,
-    geom_polygon: {
-      type: 'object',
-      required: ['type', 'coordinates'],
-      properties: {
-        type: { const: 'Polygon' },
-        coordinates: { type: 'array' },
-      },
-    },
+    geom_polygon: polygonBody,
     floor: { type: 'integer' },
     opening_hours: { type: 'object' },
     contact_phone: { type: 'string', maxLength: 20 },

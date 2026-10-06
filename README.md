@@ -54,6 +54,17 @@ npm run dev               # http://localhost:5173 (proxy /api -> :3000)
 **pgAdmin:** http://localhost:5050 (admin@phenikaa.edu.vn / admin)
 **Swagger API docs:** http://localhost:3000/docs
 
+## 🔐 Bảo mật API
+
+Mặc định chỉ đọc (GET) là public. Các thao tác ghi (POST/PATCH/DELETE) có thể bảo vệ bằng API key:
+
+```bash
+# backend/.env
+ADMIN_API_KEY=your-secret-key
+```
+
+Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-key: <key>` hoặc `Authorization: Bearer <key>` cho mọi request POST/PATCH/DELETE `/api/*` (nếu không đặt biến này, các endpoint ghi vẫn mở — chỉ phù hợp môi trường dev).
+
 ## 📚 API
 
 | Method | Endpoint | Mô tả |
@@ -93,6 +104,6 @@ Routing chạy Dijkstra trên đồ thị `campus_paths` (các đường nội b
 
 ## 🔧 Scripts
 
-**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` | `npm run db:reset`
+**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` | `npm run db:reset` | `npm run lint`
 
-**Frontend:** `npm run dev` | `npm run build` | `npm run preview`
+**Frontend:** `npm run dev` | `npm run build` | `npm run preview` | `npm run lint`

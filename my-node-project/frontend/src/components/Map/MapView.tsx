@@ -2,9 +2,11 @@
 // Phenikaa WebGIS - Map Components
 // =============================================
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, useMap, GeoJSON as GeoJSONComponent, LayersControl, Marker, Circle } from 'react-leaflet';
 import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import L from 'leaflet';
 import type { Place, Category } from '../../types';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM, PHENIKAA_BOUNDS } from '../../types';
@@ -129,47 +131,54 @@ interface PlacesLayerProps {
 export function PlacesLayer({ places, categories, selectedPlaceId, onPlaceClick }: PlacesLayerProps) {
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
-  const categoryMap = useRef(new Map<string, Category>());
 
-  // Update category map when categories change
-  useEffect(() => {
-    categoryMap.current.clear();
-    categories.forEach(c => categoryMap.current.set(c.code, c));
+  // Category lookup — memoized so markers can depend on it safely
+  const categoryMap = useMemo(() => {
+    const m = new Map<string, Category>();
+    categories.forEach((c) => m.set(c.code, c));
+    return m;
   }, [categories]);
 
-  // Initialize/update marker cluster group
+  // Initialize marker cluster group once per map
   useEffect(() => {
-    if (!clusterRef.current) {
-      clusterRef.current = L.markerClusterGroup({
-        chunkedLoading: true,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true,
-        maxClusterRadius: 50,
-        iconCreateFunction: (cluster: any) => {
-          const count = cluster.getChildCount();
-          let className = 'marker-cluster';
-          if (count < 10) className += ' marker-cluster-small';
-          else if (count < 100) className += ' marker-cluster-medium';
-          else className += ' marker-cluster-large';
-          return L.divIcon({
-            html: `<span>${count}</span>`,
-            className,
-            iconSize: [40, 40],
-          });
-        },
-      });
-      clusterRef.current.addTo(map);
-    }
+    const group = L.markerClusterGroup({
+      chunkedLoading: true,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      maxClusterRadius: 50,
+      iconCreateFunction: (cluster: any) => {
+        const count = cluster.getChildCount();
+        let className = 'marker-cluster';
+        if (count < 10) className += ' marker-cluster-small';
+        else if (count < 100) className += ' marker-cluster-medium';
+        else className += ' marker-cluster-large';
+        return L.divIcon({
+          html: `<span>${count}</span>`,
+          className,
+          iconSize: [40, 40],
+        });
+      },
+    });
+    clusterRef.current = group;
+    group.addTo(map);
+    return () => {
+      map.removeLayer(group);
+      clusterRef.current = null;
+    };
+  }, [map]);
 
-    // Clear existing markers
-    clusterRef.current.clearLayers();
+  // Sync markers with the places list (does NOT recreate the cluster group)
+  useEffect(() => {
+    const group = clusterRef.current;
+    if (!group) return;
 
-    // Add new markers
+    group.clearLayers();
+
     places
       .filter(p => p.geom_point?.coordinates)
       .forEach(place => {
-        const category = place.category_code ? categoryMap.current.get(place.category_code) : null;
+        const category = place.category_code ? categoryMap.get(place.category_code) : null;
         const color = category?.color || '#3388ff';
         const iconName = category?.icon || 'map-pin';
         const MarkerIcon = createMarkerIcon(color, iconName);
@@ -196,16 +205,9 @@ export function PlacesLayer({ places, categories, selectedPlaceId, onPlaceClick 
         `;
 
         marker.bindPopup(popupContent, { autoClose: false, closeOnClick: false, className: 'custom-popup' });
-        clusterRef.current!.addLayer(marker);
+        group.addLayer(marker);
       });
-
-    return () => {
-      if (clusterRef.current) {
-        map.removeLayer(clusterRef.current);
-        clusterRef.current = null;
-      }
-    };
-  }, [map, places, selectedPlaceId, onPlaceClick]);
+  }, [places, selectedPlaceId, categoryMap]);
 
   // Handle popup button clicks
   useEffect(() => {
@@ -236,17 +238,16 @@ interface BuildingsLayerProps {
 }
 
 export function BuildingsLayer({ places, categories }: BuildingsLayerProps) {
-  const categoryMap = useRef(new Map<string, Category>());
-
-  useEffect(() => {
-    categoryMap.current.clear();
-    categories.forEach(c => categoryMap.current.set(c.code, c));
+  const categoryMap = useMemo(() => {
+    const m = new Map<string, Category>();
+    categories.forEach((c) => m.set(c.code, c));
+    return m;
   }, [categories]);
 
   const buildings = places
     .filter(p => p.geom_polygon?.coordinates)
     .map(place => {
-      const category = place.category_code ? categoryMap.current.get(place.category_code) : null;
+      const category = place.category_code ? categoryMap.get(place.category_code) : null;
       const color = category?.color || '#3388ff';
       const isBuilding = place.category_code === 'building';
 

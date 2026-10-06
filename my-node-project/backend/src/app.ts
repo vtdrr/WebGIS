@@ -5,7 +5,6 @@ import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
-import { z } from 'zod';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { config } from './config/index.js';
 import { categoriesRoutes } from './modules/categories/categories.routes.js';
@@ -69,6 +68,22 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // API routes
   await app.register(async function (api) {
+    // Protect write operations with an admin API key when configured
+    if (config.ADMIN_API_KEY) {
+      api.addHook('onRequest', async (request, reply) => {
+        if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return;
+        const headerKey = request.headers['x-admin-key'];
+        const auth = request.headers.authorization;
+        const bearerKey = typeof auth === 'string' && auth.startsWith('Bearer ')
+          ? auth.slice(7)
+          : undefined;
+        const provided = Array.isArray(headerKey) ? headerKey[0] : (headerKey ?? bearerKey);
+        if (provided !== config.ADMIN_API_KEY) {
+          return reply.code(401).send({ message: 'Unauthorized: invalid or missing admin key' });
+        }
+      });
+    }
+
     await api.register(categoriesRoutes, { prefix: '/categories' });
     await api.register(placesRoutes, { prefix: '/places' });
     await api.register(routingRoutes, { prefix: '/routing' });

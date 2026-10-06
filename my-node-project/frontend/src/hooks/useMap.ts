@@ -42,7 +42,7 @@ export function useFitBounds(places: Place[], padding = [20, 20]) {
       validPlaces.map(p => [p.geom_point!.coordinates[1], p.geom_point!.coordinates[0]] as [number, number])
     );
     map.fitBounds(bounds, { padding: L.point(padding[0], padding[1]), maxZoom: 18 });
-  }, [map, places]);
+  }, [map, places, padding]);
 }
 
 // Handle map move events and update store
@@ -176,7 +176,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     } catch (err) {
       console.error('Error saving to localStorage:', err);
     }
-  }, [key]);
+  }, [key, storedValue]);
 
   return [storedValue, setValue] as const;
 }

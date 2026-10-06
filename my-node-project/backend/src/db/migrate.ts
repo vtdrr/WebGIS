@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { pool, query } from './pool.js';
+import { pool } from './pool.js';
 import { config } from '../config/index.js';
 
 const __filename = fileURLToPath(import.meta.url);

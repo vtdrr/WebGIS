@@ -10,6 +10,7 @@ const idParamSchema = {
 
 const createCategoryBodySchema = {
   type: 'object',
+  additionalProperties: false,
   required: ['code', 'name_vi'],
   properties: {
     code: { type: 'string', enum: ['building', 'classroom', 'lab', 'library', 'canteen', 'dormitory', 'parking', 'sports', 'gate', 'admin', 'medical', 'other'] },
@@ -24,6 +25,7 @@ const createCategoryBodySchema = {
 
 const updateCategoryBodySchema = {
   type: 'object',
+  additionalProperties: false,
   properties: {
     code: { type: 'string', enum: ['building', 'classroom', 'lab', 'library', 'canteen', 'dormitory', 'parking', 'sports', 'gate', 'admin', 'medical', 'other'] },
     name_vi: { type: 'string', minLength: 1, maxLength: 100 },

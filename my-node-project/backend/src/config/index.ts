@@ -15,6 +15,10 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
 
   SWAGGER_ENABLED: z.string().transform(v => v === 'true').default('true'),
+
+  // Optional: when set, POST/PATCH/DELETE /api/* require this key
+  // (header: x-admin-key or Authorization: Bearer <key>)
+  ADMIN_API_KEY: z.string().min(1).optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

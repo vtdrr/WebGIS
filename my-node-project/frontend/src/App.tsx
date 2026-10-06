@@ -2,7 +2,7 @@
 // Phenikaa WebGIS - Main App Component
 // =============================================
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   BaseMap,
   PlacesLayer,
@@ -81,10 +81,10 @@ function App() {
   const { position, error: geoError, loading: geoLoading, requestLocation } = useGeolocation();
 
   // Handle place selection
-  const handlePlaceClick = (place: Place) => {
+  const handlePlaceClick = useCallback((place: Place) => {
     setSelectedPlace(place);
     clearSearch();
-  };
+  }, [setSelectedPlace, clearSearch]);
 
   const handleCloseDetail = () => {
     setSelectedPlace(null);

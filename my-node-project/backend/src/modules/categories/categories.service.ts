@@ -38,13 +38,24 @@ export class CategoriesService {
   }
 
   async update(id: number, data: UpdateCategory): Promise<CategoryResponse | null> {
+    // Whitelist updatable columns — never interpolate raw body keys into SQL
+    const fieldMap: Record<string, string> = {
+      code: 'code',
+      name_vi: 'name_vi',
+      name_en: 'name_en',
+      icon: 'icon',
+      color: 'color',
+      sort_order: 'sort_order',
+      is_active: 'is_active',
+    };
+
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
 
     for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined) {
-        fields.push(`${key} = $${paramIndex++}`);
+      if (value !== undefined && key in fieldMap) {
+        fields.push(`${fieldMap[key]} = $${paramIndex++}`);
         values.push(value);
       }
     }

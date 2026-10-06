@@ -1,5 +1,4 @@
 import { query } from './pool.js';
-import { config } from '../config/index.js';
 
 async function seed(): Promise<void> {
   console.log('🌱 Seeding database...');

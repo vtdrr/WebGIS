@@ -43,7 +43,9 @@ export async function getClient(): Promise<pg.PoolClient> {
         return await originalQuery(...args);
       } finally {
         const duration = Date.now() - start;
-        console.log('📊 Client query', { text: args[0]?.substring(0, 100), duration });
+        // args[0] may be a query string or a QueryConfig object
+        const text = typeof args[0] === 'string' ? args[0] : String(args[0]?.text ?? '');
+        console.log('📊 Client query', { text: text.substring(0, 100), duration });
       }
     };
   }
