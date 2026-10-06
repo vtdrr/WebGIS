@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { Category, Place, PlaceQueryParams, MapState, RoutingResponse, RoutingParams } from '../types';
+import { PHENIKAA_CENTER, PHENIKAA_ZOOM } from '../types';
 
 interface AppState {
   // Categories
@@ -155,8 +156,8 @@ export const useStore = create<AppState>()(
 
     // Map
     mapState: {
-      center: [21.2872, 105.7825],
-      zoom: 17,
+      center: [PHENIKAA_CENTER[0], PHENIKAA_CENTER[1]],
+      zoom: PHENIKAA_ZOOM,
       bounds: null,
     },
     setMapCenter: (center) => set((state) => ({ mapState: { ...state.mapState, center } })),
@@ -201,7 +202,7 @@ export const useStore = create<AppState>()(
     startRoutingTo: async (place, userPosition) => {
       const from = userPosition
         ? { lat: userPosition.lat, lng: userPosition.lng, name: 'Vị trí của tôi' }
-        : { lat: 21.2872, lng: 105.7825, name: 'Tâm khuôn viên' };
+        : { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: 'Tâm khuôn viên' };
       const to = placeToRoutePoint(place);
       set({
         routingFrom: from,
@@ -220,7 +221,7 @@ function placeToRoutePoint(place: Place): { lat: number; lng: number; name: stri
   if (coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
     return { lat: coords[1], lng: coords[0], name: place.name_vi };
   }
-  return { lat: 21.2872, lng: 105.7825, name: place.name_vi };
+  return { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: place.name_vi };
 }
 
 // Route fetching helper

@@ -86,6 +86,9 @@ Routing chạy Dijkstra trên đồ thị `campus_paths` (các đường nội b
 
 ## 🗺️ Dữ liệu không gian
 
+- Tâm bản đồ mặc định: Trường Đại học Phenikaa `[20.9626112, 105.7486864]`, zoom 17
+- Street Map: `tile.openstreetmap.de` (OSM community server, OSM-derived) — attribution "© OpenStreetMap contributors"
+- Satellite: Esri World Imagery — attribution "Imagery © Esri, Maxar, Earthstar Geographics", `maxNativeZoom: 19` (Esri không có imagery z20 tại khu vực này)
 - `places.geom_point` — điểm đại diện (marker), SRID 4326
 - `places.geom_polygon` — footprint tòa nhà/vùng đất
 - `places.search_tsv` — tsvector (generated, config `simple`) cho full-text search

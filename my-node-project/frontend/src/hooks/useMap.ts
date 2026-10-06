@@ -56,7 +56,11 @@ export function useMapSync() {
       const map = e.target;
       setMapCenter([map.getCenter().lat, map.getCenter().lng]);
       setMapZoom(map.getZoom());
-      setMapBounds(map.getBounds().toArray() as [[number, number], [number, number]]);
+      const b = map.getBounds();
+      setMapBounds([
+        [b.getSouth(), b.getWest()],
+        [b.getNorth(), b.getEast()],
+      ]);
     },
   });
 }

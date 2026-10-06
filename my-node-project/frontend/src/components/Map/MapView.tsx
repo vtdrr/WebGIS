@@ -3,7 +3,7 @@
 // =============================================
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, useMap, GeoJSON as GeoJSONComponent, LayersControl, Marker, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, GeoJSON as GeoJSONComponent, LayersControl, Marker, Circle, Popup } from 'react-leaflet';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -53,20 +53,34 @@ export function BaseMap({ children }: { children: React.ReactNode }) {
         <LayersControl.BaseLayer checked name="Bản đồ">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url="https://tile.openstreetmap.de/{z}/{x}/{y}.png"
+            maxNativeZoom={18}
             maxZoom={20}
-            crossOrigin=""
           />
         </LayersControl.BaseLayer>
         <LayersControl.BaseLayer name="Vệ tinh">
           <TileLayer
             attribution="Imagery &copy; Esri, Maxar, Earthstar Geographics"
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            maxNativeZoom={19}
             maxZoom={20}
-            crossOrigin=""
           />
         </LayersControl.BaseLayer>
       </LayersControl>
+      {/* Campus center marker */}
+      <Marker
+        position={PHENIKAA_CENTER}
+        icon={L.divIcon({
+          html: `<div style="width: 14px; height: 14px; border-radius: 50%; background: #1e3a8a; border: 3px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.4);"></div>`,
+          className: 'campus-marker',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        })}
+      >
+        <Popup>
+          <strong>Trường Đại học Phenikaa</strong>
+        </Popup>
+      </Marker>
       {children}
       <MapSync />
       <MapFlyTo />

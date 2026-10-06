@@ -191,10 +191,11 @@ export interface MapState {
   bounds: [[number, number], [number, number]] | null;
 }
 
+// Phenikaa University campus (20.9626112, 105.7486864)
 export const PHENIKAA_BOUNDS: [[number, number], [number, number]] = [
-  [21.285, 105.780], // Southwest
-  [21.290, 105.786]  // Northeast
+  [20.955, 105.741], // Southwest
+  [20.970, 105.756]  // Northeast
 ];
 
-export const PHENIKAA_CENTER: [number, number] = [21.2872, 105.7825];
+export const PHENIKAA_CENTER: [number, number] = [20.9626112, 105.7486864];
 export const PHENIKAA_ZOOM = 17;

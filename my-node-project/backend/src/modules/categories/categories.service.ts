@@ -79,7 +79,7 @@ export class CategoriesService {
   async getWithPlaceCounts(): Promise<Array<CategoryResponse & { place_count: number }>> {
     const result = await query<CategoryResponse & { place_count: number }>(`
       SELECT c.id, c.code, c.name_vi, c.name_en, c.icon, c.color, c.sort_order, c.is_active, c.created_at, c.updated_at,
-             COUNT(p.id) as place_count
+             COUNT(p.id)::int as place_count
       FROM categories c
       LEFT JOIN places p ON p.category_id = c.id
       WHERE c.is_active = true

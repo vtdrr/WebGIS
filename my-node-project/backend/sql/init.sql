@@ -129,15 +129,15 @@ ON CONFLICT (code) DO UPDATE SET
 -- =============================================
 -- Sample places (will be replaced by real data import)
 -- =============================================
--- Bounds Phenikaa University approx: 21.287°N, 105.782°E
+-- Bounds Phenikaa University approx: 20.9626°N, 105.7487°E
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, geom_polygon, floor, opening_hours, attributes)
 SELECT
   c.id,
   'A1-MAIN',
   'Tòa nhà A1 - Khu A',
   'Building A1 - Zone A',
-  ST_SetSRID(ST_MakePoint(105.7825, 21.2872), 4326)::geometry(Point, 4326),
-  ST_SetSRID(ST_GeomFromText('POLYGON((105.7820 21.2870, 105.7830 21.2870, 105.7830 21.2874, 105.7820 21.2874, 105.7820 21.2870))'), 4326)::geometry(Polygon, 4326),
+  ST_SetSRID(ST_MakePoint(105.7486864, 20.9626112), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_GeomFromText('POLYGON((105.7481864 20.9620112, 105.7491864 20.9620112, 105.7491864 20.9624112, 105.7481864 20.9624112, 105.7481864 20.9620112))'), 4326)::geometry(Polygon, 4326),
   NULL,
   '{"mon-fri": "07:00-22:00", "sat": "07:00-17:00", "sun": "closed"}'::jsonb,
   '{"floors": 5, "has_elevator": true, "has_wifi": true}'::jsonb
@@ -150,7 +150,7 @@ SELECT
   'A1-101',
   'Phòng học A1-101',
   'Classroom A1-101',
-  ST_SetSRID(ST_MakePoint(105.7825, 21.2872), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7486864, 20.9626112), 4326)::geometry(Point, 4326),
   1,
   '{"mon-fri": "07:00-22:00", "sat": "07:00-17:00"}'::jsonb,
   '{"capacity": 60, "has_projector": true, "has_ac": true, "has_wifi": true}'::jsonb
@@ -163,7 +163,7 @@ SELECT
   'LIB-MAIN',
   'Thư viện chính',
   'Main Library',
-  ST_SetSRID(ST_MakePoint(105.7832, 21.2868), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7493864, 20.9622112), 4326)::geometry(Point, 4326),
   '{"mon-fri": "07:00-22:00", "sat": "08:00-20:00", "sun": "08:00-17:00"}'::jsonb,
   '{"capacity": 500, "has_wifi": true, "has_ac": true, "wheelchair_access": true}'::jsonb
 FROM categories c WHERE c.code = 'library'
@@ -174,7 +174,7 @@ ON CONFLICT (code) DO NOTHING;
 -- =============================================
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, floor, opening_hours, attributes)
 SELECT c.id, 'CAN-MAIN', 'Căng tin trường', 'Campus Canteen',
-  ST_SetSRID(ST_MakePoint(105.7816, 21.2864), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7477864, 20.9618112), 4326)::geometry(Point, 4326),
   NULL,
   '{"mon-fri": "06:30-21:00", "sat": "07:00-20:00", "sun": "07:00-18:00"}'::jsonb,
   '{"capacity": 300, "has_wifi": true, "has_ac": true}'::jsonb
@@ -183,7 +183,7 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, opening_hours, attributes)
 SELECT c.id, 'ADM-MAIN', 'Phòng hành chính', 'Administration Office',
-  ST_SetSRID(ST_MakePoint(105.7829, 21.2879), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7490864, 20.9633112), 4326)::geometry(Point, 4326),
   '{"mon-fri": "07:30-17:00", "sat": "closed", "sun": "closed"}'::jsonb,
   '{"has_elevator": true, "has_wifi": true, "has_ac": true}'::jsonb
 FROM categories c WHERE c.code = 'admin'
@@ -191,7 +191,7 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, opening_hours, attributes)
 SELECT c.id, 'DOR-A', 'Ký túc xá A', 'Dormitory A',
-  ST_SetSRID(ST_MakePoint(105.7846, 21.2886), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7507864, 20.9640112), 4326)::geometry(Point, 4326),
   '{"mon-sun": "00:00-24:00"}'::jsonb,
   '{"floors": 6, "has_elevator": true, "has_wifi": true}'::jsonb
 FROM categories c WHERE c.code = 'dormitory'
@@ -199,14 +199,14 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, attributes)
 SELECT c.id, 'PK-MAIN', 'Bãi đỗ xe chính', 'Main Parking',
-  ST_SetSRID(ST_MakePoint(105.7808, 21.2881), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7469864, 20.9635112), 4326)::geometry(Point, 4326),
   '{"capacity": 200, "wheelchair_access": true}'::jsonb
 FROM categories c WHERE c.code = 'parking'
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, opening_hours, attributes)
 SELECT c.id, 'SPT-MAIN', 'Sân thể thao', 'Sports Field',
-  ST_SetSRID(ST_MakePoint(105.7842, 21.2893), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7503864, 20.9647112), 4326)::geometry(Point, 4326),
   '{"mon-sun": "05:00-22:00"}'::jsonb,
   '{"wheelchair_access": true}'::jsonb
 FROM categories c WHERE c.code = 'sports'
@@ -214,14 +214,14 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, attributes)
 SELECT c.id, 'GATE-S', 'Cổng Nam (cổng chính)', 'South Gate (Main Gate)',
-  ST_SetSRID(ST_MakePoint(105.7821, 21.2853), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7482864, 20.9607112), 4326)::geometry(Point, 4326),
   '{"mon-sun": "00:00-24:00"}'::jsonb
 FROM categories c WHERE c.code = 'gate'
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO places (category_id, code, name_vi, name_en, geom_point, attributes)
 SELECT c.id, 'GATE-N', 'Cổng Bắc', 'North Gate',
-  ST_SetSRID(ST_MakePoint(105.7836, 21.2897), 4326)::geometry(Point, 4326),
+  ST_SetSRID(ST_MakePoint(105.7497864, 20.9651112), 4326)::geometry(Point, 4326),
   '{"mon-sun": "05:00-23:00"}'::jsonb
 FROM categories c WHERE c.code = 'gate'
 ON CONFLICT (code) DO NOTHING;

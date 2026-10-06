@@ -5,6 +5,9 @@ node_modules/
 dist/
 build/
 
+# TypeScript incremental build info
+*.tsbuildinfo
+
 # Environment files (may contain secrets)
 .env
 .env.local
