@@ -15,7 +15,7 @@ import { closePool } from './db/pool.js';
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
-      level: config.NODE_ENV === 'development' ? 'debug' : 'info',
+      level: config.NODE_ENV === 'test' ? 'silent' : config.NODE_ENV === 'development' ? 'debug' : 'info',
       transport: config.NODE_ENV === 'development' ? {
         target: 'pino-pretty',
         options: { colorize: true, translateTime: 'HH:MM:ss Z', ignore: 'pid,hostname' },
@@ -116,7 +116,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     });
   });
 
-  // Graceful shutdown
+  return app;
+}
+
+// Graceful shutdown (only for the real server process, not for tests)
+function registerShutdown(app: FastifyInstance): void {
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, 'Shutting down...');
     await closePool();
@@ -126,14 +130,15 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-
-  return app;
 }
 
 // Start server if run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   buildApp()
-    .then((app) => app.listen({ port: config.PORT, host: config.HOST }))
+    .then((app) => {
+      registerShutdown(app);
+      return app.listen({ port: config.PORT, host: config.HOST });
+    })
     .then((address) => {
       console.log(`🚀 Server listening at ${address}`);
       console.log(`📚 Swagger UI: ${address}/docs`);

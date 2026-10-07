@@ -11,8 +11,11 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "npm run db:migrate && npm run db:seed",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write src"
+    "lint": "eslint src tests --ext .ts",
+    "format": "prettier --write src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
@@ -36,7 +39,8 @@
     "prettier": "^3.3.3",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3",
-    "typescript-eslint": "^8.8.0"
+    "typescript-eslint": "^8.8.0",
+    "vitest": "^3.2.7"
   },
   "engines": {
     "node": ">=20.0.0"

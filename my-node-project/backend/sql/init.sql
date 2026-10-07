@@ -84,12 +84,15 @@ CREATE INDEX idx_places_floor ON places (floor);
 -- Full-text search (using 'simple' config for multilingual support)
 -- 'simple' config works for any language without stemming.
 -- f_unaccent() makes search accent-insensitive ("thu vien" matches "Thư viện").
+-- Weights: name = A, code + English name = B, descriptions = C.
 ALTER TABLE places ADD COLUMN search_tsv tsvector
   GENERATED ALWAYS AS (
-    to_tsvector('simple', f_unaccent(coalesce(name_vi, '') || ' ' || coalesce(description_vi, '') || ' ' || coalesce(code, '')))
+    setweight(to_tsvector('simple', f_unaccent(coalesce(name_vi, ''))), 'A') ||
+    setweight(to_tsvector('simple', f_unaccent(coalesce(code, '') || ' ' || coalesce(name_en, ''))), 'B') ||
+    setweight(to_tsvector('simple', f_unaccent(coalesce(description_vi, '') || ' ' || coalesce(description_en, ''))), 'C')
   ) STORED;
 
--- Upgrade databases created before accent-insensitive search was added:
+-- Upgrade databases created before weighted accent-insensitive search was added:
 -- rebuild search_tsv (views depending on places.* are recreated further below)
 DO $$
 BEGIN
@@ -99,14 +102,16 @@ BEGIN
     JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
     WHERE d.adrelid = 'places'::regclass
       AND a.attname = 'search_tsv'
-      AND pg_get_expr(d.adbin, d.adrelid) LIKE '%f_unaccent%'
+      AND pg_get_expr(d.adbin, d.adrelid) LIKE '%setweight%'
   ) THEN
     DROP VIEW IF EXISTS v_places_geojson;
     DROP VIEW IF EXISTS v_places_with_category;
     ALTER TABLE places DROP COLUMN search_tsv;
     ALTER TABLE places ADD COLUMN search_tsv tsvector
       GENERATED ALWAYS AS (
-        to_tsvector('simple', f_unaccent(coalesce(name_vi, '') || ' ' || coalesce(description_vi, '') || ' ' || coalesce(code, '')))
+        setweight(to_tsvector('simple', f_unaccent(coalesce(name_vi, ''))), 'A') ||
+        setweight(to_tsvector('simple', f_unaccent(coalesce(code, '') || ' ' || coalesce(name_en, ''))), 'B') ||
+        setweight(to_tsvector('simple', f_unaccent(coalesce(description_vi, '') || ' ' || coalesce(description_en, ''))), 'C')
       ) STORED;
   END IF;
 END $$;

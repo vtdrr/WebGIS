@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { placesService } from './places.service.js';
-import type { PlaceQuery, CreatePlace, UpdatePlace, PlaceResponse } from '../common/schemas.js';
+import type { PlaceQuery, CreatePlace, UpdatePlace } from '../common/schemas.js';
 
 // Plain JSON schemas for querystring
 const placeQuerySchema = {
@@ -128,14 +128,8 @@ export async function placesRoutes(app: FastifyInstance) {
   }, async (request) => {
     const { q, limit, category } = request.query as { q: string; limit: number; category?: string };
     const start = Date.now();
-    const fullTextResults = await placesService.searchFullText(q, limit, category);
-    const results: PlaceResponse[] = [...fullTextResults];
-    if (fullTextResults.length < limit) {
-      const fuzzyResults = await placesService.searchFuzzy(q, limit - fullTextResults.length);
-      const seen = new Set(fullTextResults.map(r => r.id));
-      for (const r of fuzzyResults) { if (!seen.has(r.id)) { results.push(r); seen.add(r.id); } }
-    }
-    return { data: results.slice(0, limit), meta: { query: q, took_ms: Date.now() - start } };
+    const results = await placesService.search(q, limit, category);
+    return { data: results, meta: { query: q, took_ms: Date.now() - start } };
   });
 
   // GET /api/places/nearby - Find nearby places

@@ -75,7 +75,7 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 | GET | `/api/categories/with-counts` | Danh mục + số lượng địa điểm |
 | GET | `/api/places` | Danh sách địa điểm (phân trang, lọc category/q/bbox/floor/has_polygon, sort) |
 | GET | `/api/places/geojson` | Export GeoJSON FeatureCollection |
-| GET | `/api/places/search?q=` | Tìm kiếm full-text + fuzzy (pg_trgm) |
+| GET | `/api/places/search?q=&limit=&category=` | Tìm kiếm có xếp hạng: không phân biệt dấu/hoa thường, khớp tiền tố ("thu vi" → Thư viện), tìm theo tên, mã, tên tiếng Anh, mô tả, chịu lỗi gõ (pg_trgm) |
 | GET | `/api/places/nearby?lat=&lng=&radius=` | Địa điểm gần một tọa độ (PostGIS geography) |
 | GET | `/api/places/:id` | Chi tiết địa điểm |
 | POST | `/api/places` | Tạo địa điểm (admin) |
@@ -92,7 +92,7 @@ Routing chạy Dijkstra trên đồ thị `campus_paths` (các đường nội b
 - Satellite: Esri World Imagery — attribution "Imagery © Esri, Maxar, Earthstar Geographics", `maxNativeZoom: 19` (Esri không có imagery z20 tại khu vực này)
 - `places.geom_point` — điểm đại diện (marker), SRID 4326
 - `places.geom_polygon` — footprint tòa nhà/vùng đất
-- `places.search_tsv` — tsvector (generated, config `simple`) cho full-text search
+- `places.search_tsv` — tsvector (generated, config `simple`, qua `f_unaccent`) có trọng số: tên (A) > mã + tên tiếng Anh (B) > mô tả (C)
 - Chỉ mục GIST cho geometry, GIN cho full-text + trigram
 - `campus_paths` — đồ thị đường đi: cạnh giữa 2 địa điểm có `geom` LineString + `distance_m`
 
@@ -108,6 +108,19 @@ Routing chạy Dijkstra trên đồ thị `campus_paths` (các đường nội b
 
 ## 🔧 Scripts
 
-**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` | `npm run db:reset` | `npm run lint`
+**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` | `npm run db:reset` | `npm run lint` | `npm run typecheck` | `npm test`
 
 **Frontend:** `npm run dev` | `npm run build` | `npm run preview` | `npm run lint`
+
+## 🧪 Kiểm thử
+
+Backend dùng [Vitest](https://vitest.dev). Test tích hợp chạy trên một database riêng `phenikaa_gis_test` (tự tạo lại từ `sql/init.sql` mỗi lần chạy, không đụng đến database phát triển).
+
+```bash
+docker compose up -d db     # cần PostgreSQL/PostGIS đang chạy
+cd backend
+npm test                    # chạy toàn bộ
+npm run test:watch          # chạy lại khi sửa code
+```
+
+Mặc định kết nối `postgres://postgres:postgres@localhost:5432/phenikaa_gis_test`; đổi bằng biến môi trường `TEST_DATABASE_URL` (tên database phải chứa chữ "test"). CI (GitHub Actions) chạy typecheck, lint, build và test cho cả backend và frontend.

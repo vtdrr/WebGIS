@@ -1,4 +1,5 @@
 import { query, getClient } from '../../db/pool.js';
+import { parseSearch, matchCondition } from './search.js';
 import type { CreatePlace, UpdatePlace, PlaceQuery, PlaceResponse, PlaceListResponse } from '../common/schemas.js';
 
 /** Error with HTTP status, handled by the global error handler */
@@ -77,8 +78,15 @@ export class PlacesService {
     }
 
     if (q) {
-      conditions.push(`p.search_tsv @@ plainto_tsquery('simple', f_unaccent($${paramIndex++}))`);
-      values.push(q);
+      const parsed = parseSearch(q);
+      if (!parsed) {
+        // Nothing searchable (e.g. only punctuation): no place can match
+        conditions.push('FALSE');
+      } else {
+        conditions.push(matchCondition(paramIndex, paramIndex + 1));
+        values.push(parsed.tsquery, parsed.term);
+        paramIndex += 2;
+      }
     }
 
     if (bbox) {
@@ -181,36 +189,40 @@ export class PlacesService {
     return result.rows;
   }
 
-  async searchFullText(searchQuery: string, limit: number, category?: string): Promise<Array<PlaceResponse & { rank: number }>> {
-    let sql = `
-      SELECT ${this.SELECT_FIELDS},
-             ts_rank_cd(p.search_tsv, plainto_tsquery('simple', f_unaccent($1))) as rank
-      ${this.FROM_CLAUSE}
-      WHERE p.search_tsv @@ plainto_tsquery('simple', f_unaccent($1))
-    `;
-    const values: any[] = [searchQuery];
+  /**
+   * Ranked, accent-insensitive search:
+   * prefix full-text match (name > code/English name > description) combined with
+   * trigram similarity for typo tolerance, plus boosts for exact code and name-prefix matches.
+   */
+  async search(
+    searchQuery: string,
+    limit: number,
+    category?: string,
+  ): Promise<Array<PlaceResponse & { rank: number }>> {
+    const parsed = parseSearch(searchQuery);
+    if (!parsed) return [];
 
+    const values: any[] = [parsed.tsquery, parsed.term, limit];
+    let categoryCondition = '';
     if (category) {
-      sql += ` AND c.code = $2`;
       values.push(category);
+      categoryCondition = `AND c.code = $${values.length}`;
     }
 
-    sql += ` ORDER BY rank DESC LIMIT $${values.length + 1}`;
-    values.push(limit);
-
-    const result = await query<PlaceResponse & { rank: number }>(sql, values);
-    return result.rows;
-  }
-
-  async searchFuzzy(searchQuery: string, limit: number): Promise<Array<PlaceResponse & { similarity: number }>> {
-    const result = await query<PlaceResponse & { similarity: number }>(`
+    const result = await query<PlaceResponse & { rank: number }>(`
       SELECT ${this.SELECT_FIELDS},
-             similarity(f_unaccent(p.name_vi), f_unaccent($1)) as similarity
+        (
+          ts_rank_cd(p.search_tsv, to_tsquery('simple', f_unaccent($1)), 32)
+          + similarity(f_unaccent(p.name_vi), f_unaccent($2))
+          + CASE WHEN f_unaccent(lower(p.code)) = f_unaccent($2) THEN 2 ELSE 0 END
+          + CASE WHEN f_unaccent(lower(p.name_vi)) LIKE f_unaccent($2) || '%' THEN 0.5 ELSE 0 END
+        ) AS rank
       ${this.FROM_CLAUSE}
-      WHERE f_unaccent(p.name_vi) % f_unaccent($1)
-      ORDER BY similarity DESC
-      LIMIT $2
-    `, [searchQuery, limit]);
+      WHERE ${matchCondition(1, 2)}
+        ${categoryCondition}
+      ORDER BY rank DESC, p.name_vi ASC
+      LIMIT $3
+    `, values);
     return result.rows;
   }
 
@@ -408,7 +420,7 @@ export class PlacesService {
         ), '[]'::jsonb)
       ) as geojson
       FROM v_places_with_category
-      WHERE geom_point IS NOT NULL OR geom_polygon IS NOT NULL
+      WHERE (geom_point IS NOT NULL OR geom_polygon IS NOT NULL)
     `;
     const values: any[] = [];
 

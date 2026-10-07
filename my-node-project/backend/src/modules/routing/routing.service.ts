@@ -13,7 +13,7 @@ interface GraphNode {
   lat: number;
 }
 
-interface GraphEdge {
+export interface GraphEdge {
   from: string;
   to: string;
   distanceM: number;
@@ -201,7 +201,7 @@ async function snapToNode(lat: number, lng: number): Promise<{ node: GraphNode; 
 }
 
 // Min-heap based Dijkstra
-function dijkstra(
+export function dijkstra(
   adjacency: Map<string, GraphEdge[]>,
   start: string,
   goal: string,
