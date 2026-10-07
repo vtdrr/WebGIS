@@ -1,0 +1,69 @@
+/* =============================================
+   Phenikaa WebGIS - Admin panel
+   ============================================= */
+
+.alert--ok { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.admin-notice { margin-bottom: 12px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--gray-600); }
+.field--wide { grid-column: 1 / -1; }
+.field input, .field select, .field textarea, .editor input:not([type='checkbox']):not([type='file']), .admin__list-tools input {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--gray-300); border-radius: 6px; font: inherit; font-size: 14px; background: var(--white);
+}
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgb(59 130 246 / 0.2); }
+
+.admin-login { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.admin-login form { width: 360px; max-width: 100%; background: var(--white); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 12px; }
+.admin-login h1 { font-size: 18px; }
+.admin-login p { font-size: 13px; color: var(--gray-500); }
+
+.admin { height: 100%; display: flex; flex-direction: column; }
+.admin__header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--white); border-bottom: 1px solid var(--gray-200); gap: 12px; flex-wrap: wrap; }
+.admin__header h1 { font-size: 18px; }
+.admin__header-actions { display: flex; gap: 8px; align-items: center; }
+.admin__header-actions a { text-decoration: none; }
+.admin__body { flex: 1; min-height: 0; display: flex; }
+.admin__list { width: 320px; flex-shrink: 0; background: var(--white); border-right: 1px solid var(--gray-200); display: flex; flex-direction: column; min-height: 0; }
+.admin__list-tools { padding: 12px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--gray-200); }
+.admin__list ul { list-style: none; flex: 1; overflow: auto; }
+.admin__list li button { width: 100%; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid var(--gray-100); background: transparent; cursor: pointer; display: flex; gap: 10px; align-items: center; font: inherit; font-size: 13px; }
+.admin__list li button:hover { background: var(--gray-50); }
+.admin__list li button.is-active { background: #eff6ff; }
+.admin__list li small { display: block; color: var(--gray-400); font-size: 11px; }
+.admin__empty { padding: 24px 16px; color: var(--gray-400); font-size: 13px; text-align: center; list-style: none; }
+.admin__pager { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--gray-200); font-size: 12px; color: var(--gray-500); }
+.admin__main { flex: 1; overflow: auto; padding: 16px; min-width: 0; }
+
+.editor { max-width: 860px; background: var(--white); padding: 20px; border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 16px; }
+.editor h2 { font-size: 16px; }
+.editor__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.editor fieldset { border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.editor legend { font-size: 12px; font-weight: 600; color: var(--gray-600); padding: 0 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+.editor__amenities { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+.editor__amenities label { display: flex; align-items: center; gap: 6px; }
+.editor__hours-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+.editor__images { display: flex; flex-wrap: wrap; gap: 12px; }
+.editor__images figure { width: 150px; display: flex; flex-direction: column; gap: 6px; }
+.editor__images img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; background: var(--gray-100); }
+.editor__note { font-size: 12px; color: var(--gray-500); }
+.editor__problems { padding-left: 32px; font-size: 13px; }
+.editor__actions { display: flex; gap: 8px; }
+.editor__actions .btn--primary { flex: 0 1 200px; }
+
+.geo-editor { display: flex; flex-direction: column; gap: 8px; }
+.geo-editor__toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.geo-editor__hint { font-size: 12px; color: var(--gray-500); }
+.geo-editor__map { height: 340px; width: 100%; border-radius: 8px; border: 1px solid var(--gray-200); }
+.geo-editor__coords { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.geo-editor__coords label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--gray-600); }
+.segmented { display: inline-flex; border: 1px solid var(--gray-300); border-radius: 6px; overflow: hidden; }
+.segmented button { padding: 6px 12px; border: none; background: var(--white); cursor: pointer; font-size: 12px; color: var(--gray-600); }
+.segmented button.is-active { background: var(--primary-light); color: var(--white); }
+
+@media (max-width: 768px) {
+  .admin__body { flex-direction: column; }
+  .admin__list { width: 100%; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--gray-200); }
+  .editor__grid { grid-template-columns: 1fr; }
+  .editor__hours-row { grid-template-columns: 1fr auto; }
+  .editor__hours-row input:nth-child(2) { grid-column: 1; }
+}

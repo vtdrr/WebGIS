@@ -6,6 +6,11 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { Category, Place, PlaceQueryParams, MapState, RoutingResponse, RoutingParams } from '../types';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM } from '../types';
+import { detectLang, saveLang, translate, type Lang } from '../i18n';
+import { categoriesApi, placesApi, routingApi } from '../services/api';
+
+/** Narrow screens start with the place list closed so the map is visible. */
+const isNarrowScreen = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)').matches === true;
 
 export interface RoutePoint {
   lat: number;
@@ -18,6 +23,10 @@ export interface RoutePoint {
 }
 
 interface AppState {
+  // Language
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+
   // Categories
   categories: Category[];
   categoriesLoading: boolean;
@@ -101,6 +110,13 @@ let mapPlacesRequestId = 0;
 
 export const useStore = create<AppState>()(
   subscribeWithSelector((set, get) => ({
+    // Language
+    lang: detectLang(),
+    setLang: (lang) => {
+      saveLang(lang);
+      set({ lang });
+    },
+
     // Categories
     categories: [],
     categoriesLoading: false,
@@ -108,7 +124,6 @@ export const useStore = create<AppState>()(
     fetchCategories: async () => {
       set({ categoriesLoading: true, categoriesError: null });
       try {
-        const { categoriesApi } = await import('../services/api');
         const categories = await categoriesApi.list();
         set({ categories, categoriesLoading: false });
       } catch (err) {
@@ -127,7 +142,6 @@ export const useStore = create<AppState>()(
       const { placesQuery } = get();
       set({ placesLoading: true, placesError: null });
       try {
-        const { placesApi } = await import('../services/api');
         const response = await placesApi.list(placesQuery);
         set({
           places: response.data,
@@ -143,7 +157,6 @@ export const useStore = create<AppState>()(
       if (!placesMeta || placesQuery.page >= placesMeta.totalPages) return;
       set({ placesLoading: true });
       try {
-        const { placesApi } = await import('../services/api');
         const response = await placesApi.list({ ...placesQuery, page: placesQuery.page + 1 });
         set({
           places: [...places, ...response.data],
@@ -162,7 +175,6 @@ export const useStore = create<AppState>()(
       const requestId = ++mapPlacesRequestId;
       set({ mapPlacesLoading: true });
       try {
-        const { placesApi } = await import('../services/api');
         const { category } = get().placesQuery;
         const all: Place[] = [];
         for (let page = 1; page <= MAP_PLACES_MAX_PAGES; page++) {
@@ -198,7 +210,6 @@ export const useStore = create<AppState>()(
       if (!query.trim()) { set({ searchResults: [], searchQuery: '' }); return; }
       set({ searchLoading: true, searchError: null, searchQuery: query });
       try {
-        const { placesApi } = await import('../services/api');
         const response = await placesApi.search({ q: query, limit: 10 });
         set({ searchResults: response.data, searchLoading: false });
       } catch (err) {
@@ -218,7 +229,7 @@ export const useStore = create<AppState>()(
     setMapBounds: (bounds) => set((state) => ({ mapState: { ...state.mapState, bounds } })),
 
     // UI
-    sidebarOpen: true,
+    sidebarOpen: !isNarrowScreen(),
     toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
     setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
@@ -272,12 +283,12 @@ export const useStore = create<AppState>()(
       await get().fetchRoute(newFrom, placeToRoutePoint(newTo), routingMode);
     },
     fetchRoute: async (from, to, mode) => {
-      await fetchRouteImpl(set, from, to, mode);
+      await fetchRouteImpl(set, get, from, to, mode);
     },
     startRoutingTo: async (place, userPosition) => {
       // Without a GPS fix the user must pick an origin explicitly
       const from: RoutePoint | null = userPosition
-        ? { lat: userPosition.lat, lng: userPosition.lng, name: 'Vị trí của tôi', source: 'gps' }
+        ? { lat: userPosition.lat, lng: userPosition.lng, name: translate(get().lang, 'map.myLocation'), source: 'gps' }
         : null;
       set({
         routingFrom: from,
@@ -305,13 +316,13 @@ function placeToRoutePoint(place: Place): RoutePoint {
 // Route fetching helper
 async function fetchRouteImpl(
   set: (partial: Partial<AppState> | ((state: AppState) => Partial<AppState>)) => void,
+  get: () => AppState,
   from: { lat: number; lng: number; name: string },
   to: { lat: number; lng: number; name: string },
   mode: RoutingParams['mode'],
 ): Promise<void> {
   set({ routingLoading: true, routingError: null });
   try {
-    const { routingApi } = await import('../services/api');
     const result = await routingApi.getDirections({
       from: `${from.lat},${from.lng}`,
       to: `${to.lat},${to.lng}`,
@@ -320,7 +331,7 @@ async function fetchRouteImpl(
     set({ routingResult: result, routingLoading: false });
   } catch (err) {
     set({
-      routingError: err instanceof Error ? err.message : 'Không thể tính tuyến đường',
+      routingError: err instanceof Error ? err.message : translate(get().lang, 'route.failed'),
       routingLoading: false,
       routingResult: null,
     });

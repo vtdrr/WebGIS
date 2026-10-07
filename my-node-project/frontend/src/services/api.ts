@@ -23,6 +23,15 @@ class ApiError extends Error {
   }
 }
 
+/** Build a query string, skipping undefined/null values. */
+export function toQuery(params: object): string {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) searchParams.set(key, String(value));
+  });
+  return searchParams.toString();
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -56,18 +65,11 @@ export const categoriesApi = {
 // Places
 export const placesApi = {
   list(params: PlaceQueryParams = { page: 1, limit: 20, sort: 'name_vi', order: 'asc' }): Promise<PaginatedResponse<Place>> {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        searchParams.set(key, String(value));
-      }
-    });
-    return fetchJson(`${API_BASE}/places?${searchParams.toString()}`);
+    return fetchJson(`${API_BASE}/places?${toQuery(params)}`);
   },
 
   getGeoJSON(category?: string): Promise<GeoJSON.FeatureCollection> {
-    const params = category ? `?category=${category}` : '';
-    return fetchJson(`${API_BASE}/places/geojson${params}`);
+    return fetchJson(`${API_BASE}/places/geojson${category ? `?${toQuery({ category })}` : ''}`);
   },
 
   get(id: string): Promise<Place> {
@@ -75,36 +77,18 @@ export const placesApi = {
   },
 
   search(params: SearchParams): Promise<{ data: SearchResult[]; meta: { query: string; took_ms: number } }> {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        searchParams.set(key, String(value));
-      }
-    });
-    return fetchJson(`${API_BASE}/places/search?${searchParams.toString()}`);
+    return fetchJson(`${API_BASE}/places/search?${toQuery(params)}`);
   },
 
   nearby(params: NearbyParams): Promise<Place[]> {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        searchParams.set(key, String(value));
-      }
-    });
-    return fetchJson(`${API_BASE}/places/nearby?${searchParams.toString()}`);
+    return fetchJson(`${API_BASE}/places/nearby?${toQuery(params)}`);
   },
 };
 
 // Routing
 export const routingApi = {
   getDirections(params: RoutingParams): Promise<RoutingResponse> {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        searchParams.set(key, String(value));
-      }
-    });
-    return fetchJson(`${API_BASE}/routing?${searchParams.toString()}`);
+    return fetchJson(`${API_BASE}/routing?${toQuery(params)}`);
   },
 };
 
