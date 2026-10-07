@@ -50,7 +50,7 @@ export class CategoriesService {
     };
 
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramIndex = 1;
 
     for (const [key, value] of Object.entries(data)) {

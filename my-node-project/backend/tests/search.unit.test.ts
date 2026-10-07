@@ -36,7 +36,23 @@ describe('tokenizeSearch', () => {
 
 describe('parseSearch', () => {
   it('builds a prefix tsquery joined with AND', () => {
-    expect(parseSearch('thu vi')).toEqual({ term: 'thu vi', tsquery: 'thu:* & vi:*' });
+    expect(parseSearch('thu vi')).toEqual({
+      term: 'thu vi',
+      codeFragment: 'thu-vi',
+      tsquery: 'thu:* & vi:*',
+    });
+  });
+
+  it('keeps hyphens in the code fragment so codes stay searchable', () => {
+    expect(parseSearch('E2E-1791349966')?.codeFragment).toBe('e2e-1791349966');
+    expect(parseSearch('LIB-MAIN')?.codeFragment).toBe('lib-main');
+    expect(parseSearch('  A1-101 ')?.codeFragment).toBe('a1-101');
+  });
+
+  it('turns runs of other punctuation into a single hyphen', () => {
+    expect(parseSearch('a1 / 101')?.codeFragment).toBe('a1-101');
+    // Nothing searchable at all, so no parsed search
+    expect(parseSearch('***')).toBeNull();
   });
 
   it('returns null for input without letters or digits', () => {

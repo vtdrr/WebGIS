@@ -41,12 +41,12 @@ export async function routingRoutes(app: FastifyInstance) {
 
     try {
       return await routingService.findRoute(fromLat, fromLng, toLat, toLng, mode, alternatives);
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof RoutingError) {
         return reply.code(err.statusCode).send({ message: err.message });
       }
       request.log.error(err, 'Routing failed');
-      return reply.code(500).send({ message: 'Routing failed', error: err.message });
+      return reply.code(500).send({ message: 'Routing failed' });
     }
   });
 }

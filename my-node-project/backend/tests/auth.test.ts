@@ -58,6 +58,29 @@ describe('admin API key', () => {
     expect(res.statusCode).toBe(201);
   });
 
+  it('verifies a key through POST /api/auth/verify', async () => {
+    expect((await app.inject({ method: 'POST', url: '/api/auth/verify' })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: '/api/auth/verify', headers: { 'x-admin-key': 'nope' } })).statusCode).toBe(401);
+    const ok = await app.inject({ method: 'POST', url: '/api/auth/verify', headers: { 'x-admin-key': 'test-secret' } });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toEqual({ ok: true });
+  });
+
+  it('protects uploads', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/uploads', payload: '--b--\r\n',
+      headers: { 'content-type': 'multipart/form-data; boundary=b' },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('compares keys of different lengths without throwing', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/places', payload: body(), headers: { 'x-admin-key': 'x'.repeat(5000) },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
   it('protects PATCH and DELETE too', async () => {
     const created = await app.inject({
       method: 'POST', url: '/api/places', payload: body(), headers: { 'x-admin-key': 'test-secret' },

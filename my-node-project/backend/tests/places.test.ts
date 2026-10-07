@@ -239,6 +239,30 @@ describe('places write operations', () => {
     expect(body.code).toBe('U-01');
   });
 
+  it('clears optional fields and the polygon when null is sent', async () => {
+    const category_id = await categoryId('building');
+    const created = await create({
+      category_id, code: 'CLR-01', name_vi: 'Có đủ', name_en: 'Full', floor: 3, contact_email: 'a@b.vn',
+      geom_point: [CENTER.lng, CENTER.lat],
+      geom_polygon: { type: 'Polygon', coordinates: [[[105.74, 20.96], [105.741, 20.96], [105.741, 20.961], [105.74, 20.96]]] },
+    });
+    expect(created.statusCode).toBe(201);
+    const { id } = created.json() as PlaceBody;
+
+    const res = await app.inject({
+      method: 'PATCH', url: `/api/places/${id}`,
+      payload: { name_en: null, floor: null, contact_email: null, geom_polygon: null },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as PlaceBody & { name_en: string | null; contact_email: string | null };
+    expect(body.name_en).toBeNull();
+    expect(body.floor).toBeNull();
+    expect(body.contact_email).toBeNull();
+    expect(body.geom_polygon).toBeNull();
+    expect(body.geom_point).not.toBeNull();
+    expect(body.name_vi).toBe('Có đủ');
+  });
+
   it('returns 404 when updating or deleting an unknown place', async () => {
     const id = '00000000-0000-4000-8000-000000000000';
     expect((await app.inject({ method: 'PATCH', url: `/api/places/${id}`, payload: { name_vi: 'X' } })).statusCode).toBe(404);

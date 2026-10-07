@@ -114,7 +114,7 @@ export const categoryListResponseSchema = {
 
 export const openingHoursSchema = z.record(
   z.union([z.string(), z.null()])
-).optional();
+).nullish();
 
 export const imagesSchema = z.array(
   z.object({
@@ -128,11 +128,11 @@ export const attributesSchema = z.record(z.unknown()).optional();
 
 export const createPlaceSchema = z.object({
   category_id: z.coerce.number().int().positive(),
-  code: z.string().max(50).optional(),
+  code: z.string().max(50).nullish(),
   name_vi: z.string().min(1).max(200),
-  name_en: z.string().max(200).optional(),
-  description_vi: z.string().optional(),
-  description_en: z.string().optional(),
+  name_en: z.string().max(200).nullish(),
+  description_vi: z.string().nullish(),
+  description_en: z.string().nullish(),
   // GeoJSON Point or [lng, lat]
   geom_point: z.union([
     z.tuple([z.number(), z.number()]),
@@ -145,11 +145,11 @@ export const createPlaceSchema = z.object({
   geom_polygon: z.object({
     type: z.literal('Polygon'),
     coordinates: z.array(z.array(z.tuple([z.number(), z.number()]))),
-  }).optional(),
-  floor: z.coerce.number().int().optional(),
+  }).nullish(),
+  floor: z.coerce.number().int().nullish(),
   opening_hours: openingHoursSchema,
-  contact_phone: z.string().max(20).optional(),
-  contact_email: z.string().email().optional(),
+  contact_phone: z.string().max(20).nullish(),
+  contact_email: z.string().email().nullish(),
   images: imagesSchema,
   attributes: attributesSchema,
 });

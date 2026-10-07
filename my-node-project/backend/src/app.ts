@@ -6,11 +6,17 @@ import sensible from '@fastify/sensible';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import { mkdirSync } from 'node:fs';
 import { config } from './config/index.js';
+import { adminAuth } from './plugins/adminAuth.js';
+import { etag } from './plugins/etag.js';
+import { uploadsRoutes, uploadDir } from './modules/uploads/uploads.routes.js';
 import { categoriesRoutes } from './modules/categories/categories.routes.js';
 import { placesRoutes } from './modules/places/places.routes.js';
 import { routingRoutes } from './modules/routing/routing.routes.js';
-import { closePool } from './db/pool.js';
+import { closePool, isDatabaseReachable } from './db/pool.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -39,6 +45,21 @@ export async function buildApp(): Promise<FastifyInstance> {
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW_MS,
   });
+  await app.register(multipart, {
+    limits: { fileSize: config.UPLOAD_MAX_MB * 1024 * 1024, files: 1 },
+  });
+
+  // Uploaded images are served as static files
+  mkdirSync(uploadDir(), { recursive: true });
+  await app.register(fastifyStatic, {
+    root: uploadDir(),
+    prefix: '/uploads/',
+    decorateReply: false,
+    maxAge: '7d',
+    immutable: true,
+    index: false,
+    list: false,
+  });
 
   // Swagger/OpenAPI documentation
   if (config.SWAGGER_ENABLED) {
@@ -61,32 +82,37 @@ export async function buildApp(): Promise<FastifyInstance> {
     });
   }
 
-  // Health check
+  // Liveness: the process is up
   app.get('/health', {
     schema: { hide: true },
   }, async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
+  // Readiness: the database answers too (503 otherwise)
+  app.get('/health/ready', {
+    schema: { hide: true },
+  }, async (_request, reply) => {
+    const database = await isDatabaseReachable();
+    return reply.code(database ? 200 : 503).send({
+      status: database ? 'ok' : 'unavailable',
+      database: database ? 'up' : 'down',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // API routes
   await app.register(async function (api) {
-    // Protect write operations with an admin API key when configured
-    if (config.ADMIN_API_KEY) {
-      api.addHook('onRequest', async (request, reply) => {
-        if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return;
-        const headerKey = request.headers['x-admin-key'];
-        const auth = request.headers.authorization;
-        const bearerKey = typeof auth === 'string' && auth.startsWith('Bearer ')
-          ? auth.slice(7)
-          : undefined;
-        const provided = Array.isArray(headerKey) ? headerKey[0] : (headerKey ?? bearerKey);
-        if (provided !== config.ADMIN_API_KEY) {
-          return reply.code(401).send({ message: 'Unauthorized: invalid or missing admin key' });
-        }
-      });
-    }
+    // Protect write operations with an admin API key (mandatory in production)
+    await adminAuth(api, { apiKey: config.ADMIN_API_KEY });
+    await etag(api);
+
+    // Lets the admin UI verify a key without touching data
+    // (a POST, so it goes through the same key check as every other write)
+    api.post('/auth/verify', { schema: { hide: true } }, async () => ({ ok: true }));
 
     await api.register(categoriesRoutes, { prefix: '/categories' });
     await api.register(placesRoutes, { prefix: '/places' });
     await api.register(routingRoutes, { prefix: '/routing' });
+    await api.register(uploadsRoutes, { prefix: '/uploads' });
   }, { prefix: '/api' });
 
   // 404 handler

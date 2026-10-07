@@ -1,160 +1,109 @@
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type pg from 'pg';
 import { pool } from './pool.js';
-import { config } from '../config/index.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const sqlDir = join(dirname(fileURLToPath(import.meta.url)), '../../sql');
 
-async function runMigrations(): Promise<void> {
-  console.log('🔄 Running database migrations...');
+/** Name under which the baseline schema (sql/init.sql) is recorded. */
+export const BASELINE = '0000_baseline';
 
-  const sqlPath = join(__dirname, '../../sql/init.sql');
-  const sql = readFileSync(sqlPath, 'utf-8');
+/** Arbitrary constant: serialises concurrent migration runs (e.g. several containers starting). */
+const LOCK_ID = 727_001;
 
-  // Split by semicolon but respect dollar-quoted strings and comments
-  const statements = splitSqlStatements(sql);
+export interface MigrationResult {
+  baseline: 'applied' | 'adopted' | 'present';
+  applied: string[];
+}
 
-  console.log(`📝 Parsed ${statements.length} SQL statements`);
-  
-  const client = await pool.connect();
+/** Versioned migration files: sql/migrations/NNNN_description.sql, applied in name order. */
+export function listMigrationFiles(dir = join(sqlDir, 'migrations')): string[] {
+  return readdirSync(dir)
+    .filter((f) => /^\d{4}_.+\.sql$/.test(f))
+    .sort();
+}
+
+/**
+ * Brings the database schema up to date.
+ *
+ *  1. `sql/init.sql` is the baseline. It is executed only on an empty database;
+ *     a database that already has the schema (e.g. created by the Docker
+ *     entrypoint) simply has the baseline recorded.
+ *  2. Every file in `sql/migrations/` that has not been applied yet is run in its
+ *     own transaction and recorded in `schema_migrations`.
+ *
+ * Safe to run repeatedly. A failing migration is rolled back and aborts the run.
+ */
+export async function runMigrations(
+  db: Pick<pg.Pool, 'connect'> = pool,
+  log: (message: string) => void = console.log,
+): Promise<MigrationResult> {
+  const client = await db.connect();
+  const result: MigrationResult = { baseline: 'present', applied: [] };
   try {
-    // Don't use transaction - run each statement individually for idempotency
-    for (let i = 0; i < statements.length; i++) {
-      const stmt = statements[i];
-      const trimmed = stmt.trim();
-      if (!trimmed) continue;
-      // Strip leading comment lines so statements preceded by comments still run
-      const withoutLeadingComments = trimmed.replace(/^(--[^\n]*\n\s*)+/, '').trim();
-      if (!withoutLeadingComments) continue;
-      const stmtToRun = withoutLeadingComments;
+    await client.query('SELECT pg_advisory_lock($1)', [LOCK_ID]);
 
-      try {
-        await client.query(stmtToRun);
-        if (config.NODE_ENV === 'development') {
-          console.log(`  ✓ [${i+1}/${statements.length}]`, stmtToRun.substring(0, 80).replace(/\n/g, ' ') + (stmtToRun.length > 80 ? '...' : ''));
-        }
-      } catch (err: any) {
-        // Ignore "already exists" errors for idempotency
-        if (err.code === '42710' || err.code === '42P07' || err.code === '23505' || err.code === '42701') {
-          if (config.NODE_ENV === 'development') {
-            console.log(`  ⊘ [${i+1}/${statements.length}] Skipped (already exists):`, stmtToRun.substring(0, 80));
-          }
-        } else {
-          console.error(`  ❌ [${i+1}/${statements.length}] FAILED:`, err.message);
-          console.error('     SQL:', stmtToRun.substring(0, 200));
-          throw err;
-        }
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version    TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+
+    const done = new Set(
+      (await client.query<{ version: string }>('SELECT version FROM schema_migrations')).rows.map((r) => r.version),
+    );
+
+    if (!done.has(BASELINE)) {
+      const { rows } = await client.query<{ present: boolean }>("SELECT to_regclass('public.places') IS NOT NULL AS present");
+      if (rows[0].present) {
+        await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [BASELINE]);
+        result.baseline = 'adopted';
+        log('Baseline: schema already present, recorded');
+      } else {
+        await applyFile(client, join(sqlDir, 'init.sql'), BASELINE);
+        result.baseline = 'applied';
+        log('Baseline: applied sql/init.sql');
       }
     }
-    console.log('✅ Migrations completed successfully');
-  } catch (err) {
-    console.error('❌ Migration failed:', err);
-    throw err;
+
+    for (const file of listMigrationFiles()) {
+      const version = file.replace(/\.sql$/, '');
+      if (done.has(version)) continue;
+      await applyFile(client, join(sqlDir, 'migrations', file), version);
+      result.applied.push(version);
+      log(`Migration applied: ${version}`);
+    }
+
+    if (result.applied.length === 0 && result.baseline === 'present') log('Database is up to date');
+    return result;
   } finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [LOCK_ID]).catch(() => undefined);
     client.release();
   }
 }
 
-function splitSqlStatements(sql: string): string[] {
-  const statements: string[] = [];
-  let current = '';
-  let inDollarQuote = false;
-  let dollarTag = '';
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inLineComment = false;
-  let inBlockComment = false;
-
-  for (let i = 0; i < sql.length; i++) {
-    const char = sql[i];
-    const nextChar = sql[i + 1];
-    const prevChar = sql[i - 1];
-
-    // Handle line comments
-    if (!inDollarQuote && !inSingleQuote && !inDoubleQuote && !inBlockComment) {
-      if (char === '-' && nextChar === '-') {
-        inLineComment = true;
-      }
-    }
-
-    if (inLineComment && char === '\n') {
-      inLineComment = false;
-    }
-
-    // Handle block comments
-    if (!inDollarQuote && !inSingleQuote && !inDoubleQuote && !inLineComment) {
-      if (char === '/' && nextChar === '*') {
-        inBlockComment = true;
-        i++; // skip next char
-        continue;
-      }
-      if (char === '*' && nextChar === '/' && inBlockComment) {
-        inBlockComment = false;
-        i++; // skip next char
-        continue;
-      }
-    }
-
-    if (inLineComment || inBlockComment) {
-      current += char;
-      continue;
-    }
-
-    // Handle dollar quotes ($tag$ ... $tag$)
-    if (!inSingleQuote && !inDoubleQuote) {
-      const dollarMatch = sql.slice(i).match(/^\$([a-zA-Z0-9_]*)\$/);
-      if (dollarMatch) {
-        if (!inDollarQuote) {
-          inDollarQuote = true;
-          dollarTag = dollarMatch[1];
-        } else if (dollarMatch[1] === dollarTag) {
-          inDollarQuote = false;
-          dollarTag = '';
-        }
-      }
-    }
-
-    // Handle single quotes
-    if (!inDollarQuote && !inDoubleQuote && char === "'" && prevChar !== '\\') {
-      inSingleQuote = !inSingleQuote;
-    }
-
-    // Handle double quotes
-    if (!inDollarQuote && !inSingleQuote && char === '"' && prevChar !== '\\') {
-      inDoubleQuote = !inDoubleQuote;
-    }
-
-    current += char;
-
-    // Statement separator
-    if (!inDollarQuote && !inSingleQuote && !inDoubleQuote && !inLineComment && !inBlockComment) {
-      if (char === ';') {
-        statements.push(current);
-        current = '';
-      }
-    }
+async function applyFile(client: pg.PoolClient, path: string, version: string): Promise<void> {
+  const sql = readFileSync(path, 'utf-8');
+  try {
+    await client.query('BEGIN');
+    await client.query(sql);
+    await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [version]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw new Error(`Migration ${version} failed: ${(err as Error).message}`);
   }
-
-  if (current.trim()) {
-    statements.push(current);
-  }
-
-  return statements;
 }
 
 // Run if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   runMigrations()
-    .then(() => {
-      console.log('✅ Process exiting successfully');
-      process.exit(0);
-    })
+    .then(() => pool.end())
+    .then(() => process.exit(0))
     .catch((err) => {
-      console.error('❌ Caught error in main:', err);
+      console.error('❌ Migration failed:', err);
       process.exit(1);
     });
 }
-
-export { runMigrations };

@@ -1,0 +1,3 @@
+code,name_vi,category,lat,lng,name_en,description_vi,floor
+EXAMPLE-A1,Giảng đường A1 (ví dụ),building,20.9626,105.7487,Lecture Hall A1,Dòng ví dụ - thay bằng dữ liệu thật,
+EXAMPLE-A1-101,Phòng A1-101 (ví dụ),classroom,20.9627,105.7488,Room A1-101,,1

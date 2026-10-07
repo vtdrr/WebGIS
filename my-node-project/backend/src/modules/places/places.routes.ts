@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { placesService } from './places.service.js';
+import { isUniqueViolation } from '../../db/errors.js';
 import type { PlaceQuery, CreatePlace, UpdatePlace } from '../common/schemas.js';
 
 // Plain JSON schemas for querystring
@@ -89,17 +90,19 @@ const placeBodySchema = {
   required: ['category_id', 'name_vi'],
   properties: {
     category_id: { type: 'integer', minimum: 1 },
-    code: { type: 'string', maxLength: 50 },
+    // Optional text fields are nullable so PATCH can clear them
+    code: { type: ['string', 'null'], maxLength: 50 },
     name_vi: { type: 'string', minLength: 1, maxLength: 200 },
-    name_en: { type: 'string', maxLength: 200 },
-    description_vi: { type: 'string' },
-    description_en: { type: 'string' },
+    name_en: { type: ['string', 'null'], maxLength: 200 },
+    description_vi: { type: ['string', 'null'] },
+    description_en: { type: ['string', 'null'] },
     geom_point: pointBody,
-    geom_polygon: polygonBody,
-    floor: { type: 'integer' },
-    opening_hours: { type: 'object' },
-    contact_phone: { type: 'string', maxLength: 20 },
-    contact_email: { type: 'string', format: 'email' },
+    // null removes the footprint (PATCH only)
+    geom_polygon: { anyOf: [polygonBody, { type: 'null' }] },
+    floor: { type: ['integer', 'null'] },
+    opening_hours: { type: ['object', 'null'] },
+    contact_phone: { type: ['string', 'null'], maxLength: 20 },
+    contact_email: { type: ['string', 'null'], format: 'email' },
     images: { type: 'array' },
     attributes: { type: 'object' },
   },
@@ -157,8 +160,8 @@ export async function placesRoutes(app: FastifyInstance) {
     try {
       const place = await placesService.create(request.body as CreatePlace);
       return reply.code(201).send(place);
-    } catch (err: any) {
-      if (err.code === '23505') return reply.code(409).send({ message: 'Place code already exists' });
+    } catch (err) {
+      if (isUniqueViolation(err)) return reply.code(409).send({ message: 'Place code already exists' });
       throw err;
     }
   });

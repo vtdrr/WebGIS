@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { categoriesService } from './categories.service.js';
+import { isUniqueViolation } from '../../db/errors.js';
+import type { CreateCategory, UpdateCategory } from '../common/schemas.js';
 
 // Plain JSON schemas to avoid zodTypeProvider issues
 const idParamSchema = {
@@ -63,10 +65,10 @@ export async function categoriesRoutes(app: FastifyInstance) {
     schema: { tags: ['Categories'], summary: 'Create category', body: createCategoryBodySchema },
   }, async (request, reply) => {
     try {
-      const category = await categoriesService.create(request.body as any);
+      const category = await categoriesService.create(request.body as CreateCategory);
       return reply.code(201).send(category);
-    } catch (err: any) {
-      if (err.code === '23505') return reply.code(409).send({ message: 'Category code already exists' });
+    } catch (err) {
+      if (isUniqueViolation(err)) return reply.code(409).send({ message: 'Category code already exists' });
       throw err;
     }
   });
@@ -76,7 +78,7 @@ export async function categoriesRoutes(app: FastifyInstance) {
     schema: { tags: ['Categories'], summary: 'Update category', params: idParamSchema, body: updateCategoryBodySchema },
   }, async (request, reply) => {
     const { id } = request.params as { id: number };
-    const category = await categoriesService.update(id, request.body as any);
+    const category = await categoriesService.update(id, request.body as UpdateCategory);
     if (!category) return reply.code(404).send({ message: 'Category not found' });
     return category;
   });

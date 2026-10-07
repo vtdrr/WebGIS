@@ -1,4 +1,5 @@
 import { query, getClient } from '../../db/pool.js';
+import { invalidateGraphCache } from '../routing/routing.service.js';
 import { parseSearch, matchCondition } from './search.js';
 import type { CreatePlace, UpdatePlace, PlaceQuery, PlaceResponse, PlaceListResponse } from '../common/schemas.js';
 
@@ -46,6 +47,16 @@ function polygonToWKT(coordinates: unknown): string {
   return `POLYGON(${wktRings.join(',')})`;
 }
 
+export interface GeoJSONFeatureCollection {
+  type: 'FeatureCollection';
+  features: Array<{
+    type: 'Feature';
+    id: string;
+    geometry: { type: string; coordinates: unknown };
+    properties: Record<string, unknown>;
+  }>;
+}
+
 export class PlacesService {
   private readonly SELECT_FIELDS = `
     p.id, p.category_id, p.code, p.name_vi, p.name_en,
@@ -69,7 +80,7 @@ export class PlacesService {
     const offset = (page - 1) * limit;
 
     const conditions: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramIndex = 1;
 
     if (category) {
@@ -83,9 +94,9 @@ export class PlacesService {
         // Nothing searchable (e.g. only punctuation): no place can match
         conditions.push('FALSE');
       } else {
-        conditions.push(matchCondition(paramIndex, paramIndex + 1));
-        values.push(parsed.tsquery, parsed.term);
-        paramIndex += 2;
+        conditions.push(matchCondition(paramIndex, paramIndex + 1, paramIndex + 2));
+        values.push(parsed.tsquery, parsed.term, parsed.codeFragment);
+        paramIndex += 3;
       }
     }
 
@@ -175,7 +186,7 @@ export class PlacesService {
       WHERE p.geom_point IS NOT NULL
         AND ST_DWithin(p.geom_point::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
     `;
-    const values: any[] = [lng, lat, radius];
+    const values: unknown[] = [lng, lat, radius];
 
     if (category) {
       sql += ` AND c.code = $4`;
@@ -202,7 +213,7 @@ export class PlacesService {
     const parsed = parseSearch(searchQuery);
     if (!parsed) return [];
 
-    const values: any[] = [parsed.tsquery, parsed.term, limit];
+    const values: unknown[] = [parsed.tsquery, parsed.term, parsed.codeFragment, limit];
     let categoryCondition = '';
     if (category) {
       values.push(category);
@@ -218,10 +229,10 @@ export class PlacesService {
           + CASE WHEN f_unaccent(lower(p.name_vi)) LIKE f_unaccent($2) || '%' THEN 0.5 ELSE 0 END
         ) AS rank
       ${this.FROM_CLAUSE}
-      WHERE ${matchCondition(1, 2)}
+      WHERE ${matchCondition(1, 2, 3)}
         ${categoryCondition}
       ORDER BY rank DESC, p.name_vi ASC
-      LIMIT $3
+      LIMIT $4
     `, values);
     return result.rows;
   }
@@ -234,7 +245,7 @@ export class PlacesService {
       // Convert GeoJSON to PostGIS
       let geomPointSql = 'NULL';
       let geomPolygonSql = 'NULL';
-      const values: any[] = [
+      const values: unknown[] = [
         data.category_id,
         data.code,
         data.name_vi,
@@ -293,6 +304,7 @@ export class PlacesService {
       `, values);
 
       await client.query('COMMIT');
+      invalidateGraphCache();
       return result.rows[0];
     } catch (err) {
       await client.query('ROLLBACK');
@@ -306,7 +318,7 @@ export class PlacesService {
     // Build the field list first — no transaction is needed for validation
     // or for a no-op update, so we never leave an open transaction behind.
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramIndex = 1;
 
     const fieldMap: Record<string, string> = {
@@ -328,7 +340,7 @@ export class PlacesService {
       if (value !== undefined && key in fieldMap) {
         fields.push(`${fieldMap[key]} = $${paramIndex++}`);
         if (key === 'opening_hours' || key === 'images' || key === 'attributes') {
-          values.push(JSON.stringify(value));
+          values.push(value === null ? null : JSON.stringify(value));
         } else {
           values.push(value);
         }
@@ -348,6 +360,8 @@ export class PlacesService {
       fields.push(`geom_polygon = ST_GeomFromText($${paramIndex}, 4326)`);
       values.push(wkt);
       paramIndex++;
+    } else if (data.geom_polygon === null) {
+      fields.push('geom_polygon = NULL');
     }
 
     // Nothing to update — skip the transaction entirely
@@ -383,6 +397,7 @@ export class PlacesService {
       `, values);
 
       await client.query('COMMIT');
+      invalidateGraphCache();
       return result.rows[0] ?? null;
     } catch (err) {
       await client.query('ROLLBACK');
@@ -394,10 +409,11 @@ export class PlacesService {
 
   async delete(id: string): Promise<boolean> {
     const result = await query(`DELETE FROM places WHERE id = $1`, [id]);
+    invalidateGraphCache();
     return (result.rowCount ?? 0) > 0;
   }
 
-  async getGeoJSON(category?: string): Promise<any> {
+  async getGeoJSON(category?: string): Promise<GeoJSONFeatureCollection> {
     let sql = `
       SELECT jsonb_build_object(
         'type', 'FeatureCollection',
@@ -422,14 +438,14 @@ export class PlacesService {
       FROM v_places_with_category
       WHERE (geom_point IS NOT NULL OR geom_polygon IS NOT NULL)
     `;
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (category) {
       sql += ` AND category_code = $1`;
       values.push(category);
     }
 
-    const result = await query<{ geojson: any }>(sql, values);
+    const result = await query<{ geojson: GeoJSONFeatureCollection }>(sql, values);
     return result.rows[0]?.geojson ?? { type: 'FeatureCollection', features: [] };
   }
 }

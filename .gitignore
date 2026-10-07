@@ -24,3 +24,12 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Uploaded images
+my-node-project/backend/uploads/
+uploads/
+
+# Playwright
+my-node-project/frontend/test-results/
+my-node-project/frontend/playwright-report/
+my-node-project/frontend/.playwright/
