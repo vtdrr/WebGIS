@@ -32,6 +32,8 @@ function formatDuration(seconds: number): string {
   return `${h} giờ ${minutes % 60} phút`;
 }
 
+const GPS_ORIGIN = '__gps__';
+
 const MODE_LABELS: Array<{ value: 'walk' | 'bike' | 'wheelchair'; label: string; icon: string }> = [
   { value: 'walk', label: 'Đi bộ', icon: '🚶' },
   { value: 'bike', label: 'Xe đạp', icon: '🚴' },
@@ -48,6 +50,9 @@ function App() {
     placesQuery,
     fetchPlaces,
     loadMorePlaces,
+    // Map layer places (all places, not paginated)
+    mapPlaces,
+    fetchMapPlaces,
     // Categories
     categories,
     // Selected place
@@ -68,6 +73,8 @@ function App() {
     routingError,
     routingMode,
     setRoutingMode,
+    setRoutingOrigin,
+    swapRouting,
     startRoutingTo,
     clearRouting,
   } = useStore();
@@ -75,7 +82,8 @@ function App() {
   // Initialize data
   useEffect(() => {
     fetchPlaces();
-  }, [fetchPlaces]);
+    fetchMapPlaces();
+  }, [fetchPlaces, fetchMapPlaces]);
 
   // Geolocation
   const { position, error: geoError, loading: geoLoading, requestLocation } = useGeolocation();
@@ -94,6 +102,24 @@ function App() {
     if (!selectedPlace) return;
     startRoutingTo(selectedPlace, position);
   };
+
+  const handleOriginChange = (value: string) => {
+    if (!value) {
+      setRoutingOrigin(null);
+    } else if (value === GPS_ORIGIN) {
+      if (position) setRoutingOrigin({ lat: position.lat, lng: position.lng, name: 'Vị trí của tôi' });
+    } else {
+      const place = mapPlaces.find((p) => p.id === value);
+      if (place) setRoutingOrigin(place);
+    }
+  };
+
+  const originOptions = React.useMemo(
+    () => mapPlaces.filter((p) => p.geom_point?.coordinates && p.id !== routingTo?.id),
+    [mapPlaces, routingTo],
+  );
+  const originValue = routingFrom?.placeId ?? (routingFrom ? GPS_ORIGIN : '');
+  const canSwap = Boolean(routingFrom?.placeId && routingTo);
 
   // Load more places on scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -276,12 +302,12 @@ function App() {
       <main style={{ flex: 1, position: 'relative', minWidth: 0 }}>
         <BaseMap>
           <PlacesLayer
-            places={places}
+            places={mapPlaces}
             categories={categories}
             selectedPlaceId={selectedPlace?.id ?? null}
             onPlaceClick={handlePlaceClick}
           />
-          <BuildingsLayer places={places} categories={categories} />
+          <BuildingsLayer places={mapPlaces} categories={categories} />
           {position && <UserLocation position={position} />}
           {routingResult?.routes?.[0]?.geometry &&
             typeof routingResult.routes[0].geometry !== 'string' && (
@@ -438,12 +464,49 @@ function App() {
                 </div>
 
                 {/* From - To */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12, fontSize: 13 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12, fontSize: 13 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
-                    <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {routingFrom?.name ?? '...'}
-                    </span>
+                    <select
+                      value={originValue}
+                      onChange={(e) => handleOriginChange(e.target.value)}
+                      aria-label="Điểm xuất phát"
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        padding: '6px 8px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 6,
+                        fontSize: 13,
+                        color: '#374151',
+                        background: 'white',
+                      }}
+                    >
+                      <option value="">-- Chọn điểm xuất phát --</option>
+                      <option value={GPS_ORIGIN} disabled={!position}>
+                        {position ? 'Vị trí của tôi' : 'Vị trí của tôi (chưa có GPS)'}
+                      </option>
+                      {originOptions.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name_vi}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={swapRouting}
+                      disabled={!canSwap}
+                      title="Đổi điểm đi và điểm đến"
+                      aria-label="Đổi điểm đi và điểm đến"
+                      style={{
+                        width: 28, height: 28, borderRadius: 6, background: '#f3f4f6',
+                        border: 'none', color: '#6b7280', flexShrink: 0,
+                        cursor: canSwap ? 'pointer' : 'not-allowed',
+                        opacity: canSwap ? 1 : 0.5,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" />
+                      </svg>
+                    </button>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
@@ -451,6 +514,11 @@ function App() {
                       {routingTo?.name_vi ?? '...'}
                     </span>
                   </div>
+                  {!routingFrom && routingTo && !routingLoading && (
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>
+                      Chọn điểm xuất phát để xem tuyến đường.
+                    </div>
+                  )}
                 </div>
 
                 {routingLoading && (

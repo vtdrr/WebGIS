@@ -77,7 +77,7 @@ export class PlacesService {
     }
 
     if (q) {
-      conditions.push(`p.search_tsv @@ plainto_tsquery('simple', $${paramIndex++})`);
+      conditions.push(`p.search_tsv @@ plainto_tsquery('simple', f_unaccent($${paramIndex++}))`);
       values.push(q);
     }
 
@@ -184,9 +184,9 @@ export class PlacesService {
   async searchFullText(searchQuery: string, limit: number, category?: string): Promise<Array<PlaceResponse & { rank: number }>> {
     let sql = `
       SELECT ${this.SELECT_FIELDS},
-             ts_rank_cd(p.search_tsv, plainto_tsquery('simple', $1)) as rank
+             ts_rank_cd(p.search_tsv, plainto_tsquery('simple', f_unaccent($1))) as rank
       ${this.FROM_CLAUSE}
-      WHERE p.search_tsv @@ plainto_tsquery('simple', $1)
+      WHERE p.search_tsv @@ plainto_tsquery('simple', f_unaccent($1))
     `;
     const values: any[] = [searchQuery];
 
@@ -205,9 +205,9 @@ export class PlacesService {
   async searchFuzzy(searchQuery: string, limit: number): Promise<Array<PlaceResponse & { similarity: number }>> {
     const result = await query<PlaceResponse & { similarity: number }>(`
       SELECT ${this.SELECT_FIELDS},
-             similarity(p.name_vi, $1) as similarity
+             similarity(f_unaccent(p.name_vi), f_unaccent($1)) as similarity
       ${this.FROM_CLAUSE}
-      WHERE p.name_vi % $1
+      WHERE f_unaccent(p.name_vi) % f_unaccent($1)
       ORDER BY similarity DESC
       LIMIT $2
     `, [searchQuery, limit]);

@@ -8,6 +8,14 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;  -- for similarity search
+CREATE EXTENSION IF NOT EXISTS unaccent;       -- for accent-insensitive search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;        -- for fuzzy (trigram) search
+
+-- unaccent() is only STABLE, so wrap it in an IMMUTABLE function
+-- (required for generated columns and expression indexes)
+CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text AS $$
+  SELECT public.unaccent('public.unaccent'::regdictionary, $1)
+$$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT;
 
 -- =============================================
 -- Categories table
@@ -74,17 +82,41 @@ CREATE INDEX idx_places_code ON places (code);
 CREATE INDEX idx_places_floor ON places (floor);
 
 -- Full-text search (using 'simple' config for multilingual support)
--- 'simple' config works for any language without stemming
+-- 'simple' config works for any language without stemming.
+-- f_unaccent() makes search accent-insensitive ("thu vien" matches "Thư viện").
 ALTER TABLE places ADD COLUMN search_tsv tsvector
   GENERATED ALWAYS AS (
-    to_tsvector('simple', coalesce(name_vi, '') || ' ' || coalesce(description_vi, '') || ' ' || coalesce(code, ''))
+    to_tsvector('simple', f_unaccent(coalesce(name_vi, '') || ' ' || coalesce(description_vi, '') || ' ' || coalesce(code, '')))
   ) STORED;
-CREATE INDEX idx_places_search ON places USING GIN (search_tsv);
+
+-- Upgrade databases created before accent-insensitive search was added:
+-- rebuild search_tsv (views depending on places.* are recreated further below)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_attrdef d
+    JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+    WHERE d.adrelid = 'places'::regclass
+      AND a.attname = 'search_tsv'
+      AND pg_get_expr(d.adbin, d.adrelid) LIKE '%f_unaccent%'
+  ) THEN
+    DROP VIEW IF EXISTS v_places_geojson;
+    DROP VIEW IF EXISTS v_places_with_category;
+    ALTER TABLE places DROP COLUMN search_tsv;
+    ALTER TABLE places ADD COLUMN search_tsv tsvector
+      GENERATED ALWAYS AS (
+        to_tsvector('simple', f_unaccent(coalesce(name_vi, '') || ' ' || coalesce(description_vi, '') || ' ' || coalesce(code, '')))
+      ) STORED;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_places_search ON places USING GIN (search_tsv);
 
 -- Trigram similarity for fuzzy search
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE INDEX idx_places_name_trgm ON places USING GIN (name_vi gin_trgm_ops);
-CREATE INDEX idx_places_code_trgm ON places USING GIN (code gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_places_name_trgm ON places USING GIN (name_vi gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_places_name_unaccent_trgm ON places USING GIN (f_unaccent(name_vi) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_places_code_trgm ON places USING GIN (code gin_trgm_ops);
 
 -- =============================================
 -- Updated_at trigger

@@ -7,6 +7,14 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import type { Category, Place, PlaceQueryParams, MapState, RoutingResponse, RoutingParams } from '../types';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM } from '../types';
 
+export interface RoutePoint {
+  lat: number;
+  lng: number;
+  name: string;
+  /** Set when the point comes from a place (enables swapping origin/destination) */
+  placeId?: string;
+}
+
 interface AppState {
   // Categories
   categories: Category[];
@@ -23,6 +31,11 @@ interface AppState {
   setPlacesQuery: (query: Partial<PlaceQueryParams>) => void;
   fetchPlaces: () => Promise<void>;
   loadMorePlaces: () => Promise<void>;
+
+  // All places for the map layer (independent from the paginated sidebar list)
+  mapPlaces: Place[];
+  mapPlacesLoading: boolean;
+  fetchMapPlaces: () => Promise<void>;
 
   // Selected place
   selectedPlace: Place | null;
@@ -57,13 +70,15 @@ interface AppState {
   setActiveCategoryFilter: (code: string | null) => void;
 
   // Routing
-  routingFrom: { lat: number; lng: number; name: string } | null;
+  routingFrom: RoutePoint | null;
   routingTo: Place | null;
   routingResult: RoutingResponse | null;
   routingLoading: boolean;
   routingError: string | null;
   routingMode: RoutingParams['mode'];
-  setRoutingFrom: (point: { lat: number; lng: number; name: string } | null) => void;
+  setRoutingFrom: (point: RoutePoint | null) => void;
+  setRoutingOrigin: (origin: Place | { lat: number; lng: number; name: string } | null) => Promise<void>;
+  swapRouting: () => Promise<void>;
   setRoutingTo: (place: Place | null) => void;
   setRoutingMode: (mode: RoutingParams['mode']) => void;
   fetchRoute: (
@@ -74,6 +89,10 @@ interface AppState {
   startRoutingTo: (place: Place, userPosition?: { lat: number; lng: number } | null) => Promise<void>;
   clearRouting: () => void;
 }
+
+const MAP_PLACES_PAGE_SIZE = 100; // backend max page size
+const MAP_PLACES_MAX_PAGES = 50;   // safety cap: 5000 places
+let mapPlacesRequestId = 0;
 
 export const useStore = create<AppState>()(
   subscribeWithSelector((set, get) => ({
@@ -131,6 +150,35 @@ export const useStore = create<AppState>()(
       }
     },
 
+    // All places for the map layer
+    mapPlaces: [],
+    mapPlacesLoading: false,
+    fetchMapPlaces: async () => {
+      const requestId = ++mapPlacesRequestId;
+      set({ mapPlacesLoading: true });
+      try {
+        const { placesApi } = await import('../services/api');
+        const { category } = get().placesQuery;
+        const all: Place[] = [];
+        for (let page = 1; page <= MAP_PLACES_MAX_PAGES; page++) {
+          const response = await placesApi.list({
+            page,
+            limit: MAP_PLACES_PAGE_SIZE,
+            sort: 'name_vi',
+            order: 'asc',
+            category,
+          });
+          // A newer request started (e.g. category changed): drop this one
+          if (requestId !== mapPlacesRequestId) return;
+          all.push(...response.data);
+          if (page >= response.meta.totalPages) break;
+        }
+        set({ mapPlaces: all, mapPlacesLoading: false });
+      } catch {
+        if (requestId === mapPlacesRequestId) set({ mapPlacesLoading: false });
+      }
+    },
+
     // Selected place
     selectedPlace: null,
     setSelectedPlace: (place) => set({ selectedPlace: place }),
@@ -178,6 +226,7 @@ export const useStore = create<AppState>()(
     setActiveCategoryFilter: (code) => {
       set({ activeCategoryFilter: code, placesQuery: { ...get().placesQuery, category: code || undefined, page: 1 } });
       get().fetchPlaces();
+      get().fetchMapPlaces();
     },
 
     // Routing
@@ -196,32 +245,52 @@ export const useStore = create<AppState>()(
         get().fetchRoute(routingFrom, placeToRoutePoint(routingTo), mode);
       }
     },
+    setRoutingOrigin: async (origin) => {
+      if (!origin) {
+        set({ routingFrom: null, routingResult: null, routingError: null });
+        return;
+      }
+      const from: RoutePoint = 'name_vi' in origin ? placeToRoutePoint(origin) : origin;
+      set({ routingFrom: from, routingError: null });
+      const { routingTo, routingMode } = get();
+      if (routingTo) await get().fetchRoute(from, placeToRoutePoint(routingTo), routingMode);
+    },
+    swapRouting: async () => {
+      const { routingFrom, routingTo, mapPlaces, places, routingMode } = get();
+      if (!routingFrom?.placeId || !routingTo) return;
+      const newTo = [...mapPlaces, ...places].find((p) => p.id === routingFrom.placeId);
+      if (!newTo) return;
+      const newFrom = placeToRoutePoint(routingTo);
+      set({ routingFrom: newFrom, routingTo: newTo, routingError: null });
+      await get().fetchRoute(newFrom, placeToRoutePoint(newTo), routingMode);
+    },
     fetchRoute: async (from, to, mode) => {
       await fetchRouteImpl(set, from, to, mode);
     },
     startRoutingTo: async (place, userPosition) => {
-      const from = userPosition
+      // Without a GPS fix the user must pick an origin explicitly
+      const from: RoutePoint | null = userPosition
         ? { lat: userPosition.lat, lng: userPosition.lng, name: 'Vị trí của tôi' }
-        : { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: 'Tâm khuôn viên' };
-      const to = placeToRoutePoint(place);
+        : null;
       set({
         routingFrom: from,
         routingTo: place,
+        routingResult: null,
         routingError: null,
       });
-      await get().fetchRoute(from, to, get().routingMode);
+      if (from) await get().fetchRoute(from, placeToRoutePoint(place), get().routingMode);
     },
     clearRouting: () => set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null }),
   }))
 );
 
 // Convert a Place to a route endpoint (uses its geometry when available)
-function placeToRoutePoint(place: Place): { lat: number; lng: number; name: string } {
+function placeToRoutePoint(place: Place): RoutePoint {
   const coords = place.geom_point?.coordinates;
   if (coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
-    return { lat: coords[1], lng: coords[0], name: place.name_vi };
+    return { lat: coords[1], lng: coords[0], name: place.name_vi, placeId: place.id };
   }
-  return { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: place.name_vi };
+  return { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: place.name_vi, placeId: place.id };
 }
 
 // Route fetching helper
