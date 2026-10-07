@@ -16,9 +16,9 @@ interface RouteBody {
     distance: number;
     duration: number;
     geometry: { coordinates: Array<[number, number]> };
-    legs: Array<{ steps: Array<{ instruction: string }> }>;
+    legs: Array<{ steps: Array<{ instruction: string; off_network?: boolean }> }>;
   }>;
-  meta: { mode: string; fallback: boolean; nodes: number };
+  meta: { mode: string; fallback: boolean; nodes: number; off_network_m?: number };
 }
 
 async function route(from: { lat: number; lng: number }, to: { lat: number; lng: number }, mode = 'walk') {
@@ -77,12 +77,23 @@ describe('GET /api/routing', () => {
     expect(bike.distance).toBe(walk.distance);
   });
 
-  it('falls back to a straight line when the points are far from the network', async () => {
-    const far = { lat: 21.5, lng: 106.5 };
-    const { status, body } = await route(far, { lat: 21.51, lng: 106.51 });
-    expect(status).toBe(200);
-    expect(body.meta.fallback).toBe(true);
-    expect(body.routes[0].geometry.coordinates).toHaveLength(2);
+  it('rejects an origin too far from the campus', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/routing',
+      query: { from: '21.5,106.5', to: `${C.lat},${C.lng}` },
+    });
+    expect(res.statusCode).toBe(422);
+    expect((res.json() as { message: string }).message).toMatch(/quá xa/);
+  });
+
+  it('rejects a destination too far from the campus', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/routing',
+      query: { from: `${A.lat},${A.lng}`, to: '21.5,106.5' },
+    });
+    expect(res.statusCode).toBe(422);
   });
 
   it('falls back when there is no path network at all', async () => {
@@ -93,6 +104,59 @@ describe('GET /api/routing', () => {
     expect(body.meta.fallback).toBe(true);
     await insertPath('R-A', 'R-B');
     await insertPath('R-B', 'R-C');
+  });
+});
+
+describe('routing from outside the campus', () => {
+  // ~290 m west of A, e.g. a bus stop
+  const BUS_STOP = { lat: 20.962, lng: 105.7452 };
+
+  it('walks to the nearest path node, then follows the paths', async () => {
+    const { status, body } = await route(BUS_STOP, C);
+    expect(status).toBe(200);
+    expect(body.meta.fallback).toBe(false);
+    expect(body.meta.nodes).toBe(3); // A -> B -> C
+    expect(body.meta.off_network_m).toBeGreaterThan(250);
+    expect(body.meta.off_network_m).toBeLessThan(350);
+    const coords = body.routes[0].geometry.coordinates;
+    expect(coords[0]).toEqual([BUS_STOP.lng, BUS_STOP.lat]);
+    expect(coords[coords.length - 1]).toEqual([C.lng, C.lat]);
+  });
+
+  it('flags the connector leg as off-network', async () => {
+    const { body } = await route(BUS_STOP, C);
+    const steps = body.routes[0].legs[0].steps;
+    expect(steps[0].off_network).toBe(true);
+    expect(steps.slice(1).every((s) => !s.off_network)).toBe(true);
+  });
+
+  it('adds the off-network distance to the total', async () => {
+    const inside = (await route(A, C)).body.routes[0].distance;
+    const outside = (await route(BUS_STOP, C)).body.routes[0].distance;
+    expect(outside).toBeGreaterThan(inside + 250);
+  });
+
+  it('works when the destination is the one outside the paths', async () => {
+    const { status, body } = await route(C, BUS_STOP);
+    expect(status).toBe(200);
+    expect(body.meta.fallback).toBe(false);
+    const steps = body.routes[0].legs[0].steps;
+    expect(steps[steps.length - 1].off_network).toBe(true);
+  });
+
+  it('allows an origin up to the distance limit', async () => {
+    const farBusStop = { lat: 20.962, lng: 105.748 - 0.024 }; // ~2.5 km west
+    const { status, body } = await route(farBusStop, C);
+    expect(status).toBe(200);
+    expect(body.meta.off_network_m).toBeGreaterThan(2000);
+  });
+
+  it('ignores places that are not part of the path network', async () => {
+    // A place right next to the bus stop that has no paths must not be used as the entry point
+    await insertPlace({ code: 'R-LONER', name_vi: 'Quán gần trạm', lng: BUS_STOP.lng, lat: BUS_STOP.lat });
+    const { body } = await route(BUS_STOP, C);
+    expect(body.meta.fallback).toBe(false);
+    expect(body.meta.nodes).toBe(3);
   });
 });
 

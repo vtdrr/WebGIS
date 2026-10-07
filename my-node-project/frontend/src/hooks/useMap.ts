@@ -8,7 +8,7 @@ import L from 'leaflet';
 import 'leaflet.markercluster';
 import type { Place, Point } from '../types';
 import { useStore } from '../store/useStore';
-import { PHENIKAA_CENTER, PHENIKAA_ZOOM, PHENIKAA_BOUNDS } from '../types';
+import { PHENIKAA_CENTER, PHENIKAA_ZOOM, MAP_BOUNDS, MAP_MIN_ZOOM } from '../types';
 
 // Default map center and zoom
 export function useMapInit() {
@@ -18,8 +18,8 @@ export function useMapInit() {
   useEffect(() => {
     if (!initialized.current) {
       map.setView(PHENIKAA_CENTER, PHENIKAA_ZOOM);
-      map.setMaxBounds(PHENIKAA_BOUNDS);
-      map.setMinZoom(15);
+      map.setMaxBounds(MAP_BOUNDS);
+      map.setMinZoom(MAP_MIN_ZOOM);
       map.setMaxZoom(20);
       initialized.current = true;
     }

@@ -9,6 +9,9 @@ import {
   BuildingsLayer,
   UserLocation,
   RoutingLayer,
+  RouteEndpoints,
+  RoutePicker,
+  RouteFit,
 } from './components/Map/MapView';
 import {
   SearchBar,
@@ -33,6 +36,11 @@ function formatDuration(seconds: number): string {
 }
 
 const GPS_ORIGIN = '__gps__';
+const MAP_ORIGIN = '__map__';
+
+// Equal to Leaflet's top z-index (1000) but later in the DOM, so above the map;
+// the place detail panel (z 1000, rendered after <main>) still stays on top
+const OVERLAY_Z = 1000;
 
 const MODE_LABELS: Array<{ value: 'walk' | 'bike' | 'wheelchair'; label: string; icon: string }> = [
   { value: 'walk', label: 'Đi bộ', icon: '🚶' },
@@ -74,6 +82,8 @@ function App() {
     routingMode,
     setRoutingMode,
     setRoutingOrigin,
+    routePicking,
+    setRoutePicking,
     swapRouting,
     startRoutingTo,
     clearRouting,
@@ -101,13 +111,17 @@ function App() {
   const handleDirections = () => {
     if (!selectedPlace) return;
     startRoutingTo(selectedPlace, position);
+    // The detail panel would cover the route panel, so close it
+    setSelectedPlace(null);
   };
 
   const handleOriginChange = (value: string) => {
     if (!value) {
       setRoutingOrigin(null);
     } else if (value === GPS_ORIGIN) {
-      if (position) setRoutingOrigin({ lat: position.lat, lng: position.lng, name: 'Vị trí của tôi' });
+      if (position) setRoutingOrigin({ lat: position.lat, lng: position.lng, name: 'Vị trí của tôi', source: 'gps' });
+    } else if (value === MAP_ORIGIN) {
+      // Already picked on the map: nothing to change
     } else {
       const place = mapPlaces.find((p) => p.id === value);
       if (place) setRoutingOrigin(place);
@@ -118,7 +132,8 @@ function App() {
     () => mapPlaces.filter((p) => p.geom_point?.coordinates && p.id !== routingTo?.id),
     [mapPlaces, routingTo],
   );
-  const originValue = routingFrom?.placeId ?? (routingFrom ? GPS_ORIGIN : '');
+  const originValue =
+    routingFrom?.placeId ?? (routingFrom?.source === 'map' ? MAP_ORIGIN : routingFrom ? GPS_ORIGIN : '');
   const canSwap = Boolean(routingFrom?.placeId && routingTo);
 
   // Load more places on scroll
@@ -309,13 +324,22 @@ function App() {
           />
           <BuildingsLayer places={mapPlaces} categories={categories} />
           {position && <UserLocation position={position} />}
-          {routingResult?.routes?.[0]?.geometry &&
-            typeof routingResult.routes[0].geometry !== 'string' && (
-              <RoutingLayer route={routingResult.routes[0].geometry} />
-            )}
+          <RoutingLayer
+            route={routingResult?.routes?.[0] ?? null}
+            fallback={routingResult?.meta?.fallback}
+          />
+          <RouteEndpoints />
+          <RoutePicker />
+          <RouteFit />
+        </BaseMap>
 
-          {/* Floating action buttons */}
-          <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/*
+          Overlays live outside <BaseMap> and above Leaflet's panes (z-index 400-1000),
+          otherwise the map would cover them and swallow their clicks.
+        */}
+        <>
+          {/* Floating action buttons (below the layers control) */}
+          <div style={{ position: 'absolute', top: 64, right: 16, zIndex: OVERLAY_Z, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Location button */}
             <button
               onClick={() => requestLocation()}
@@ -373,14 +397,46 @@ function App() {
             </button>
           </div>
 
-          {/* Geolocation error toast */}
-          {geoError && (
-            <div style={{
+          {/* Pick-origin hint */}
+          {routePicking && (
+            <div role="status" style={{
               position: 'absolute',
               top: 16,
               left: '50%',
               transform: 'translateX(-50%)',
-              zIndex: 50,
+              zIndex: OVERLAY_Z,
+              background: '#1e3a8a',
+              color: 'white',
+              padding: '10px 14px',
+              borderRadius: 10,
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+              maxWidth: 'calc(100% - 32px)',
+            }}>
+              <span>📍 Bấm vào bản đồ để chọn điểm xuất phát (vị trí hiện tại của bạn)</span>
+              <button
+                onClick={() => setRoutePicking(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.18)', color: 'white', border: 'none',
+                  borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                Hủy (Esc)
+              </button>
+            </div>
+          )}
+
+          {/* Geolocation error toast */}
+          {geoError && (
+            <div style={{
+              position: 'absolute',
+              top: routePicking ? 72 : 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: OVERLAY_Z,
               background: '#fef2f2',
               border: '1px solid #fecaca',
               color: '#dc2626',
@@ -399,7 +455,7 @@ function App() {
               position: 'absolute',
               bottom: 24,
               right: 16,
-              zIndex: 50,
+              zIndex: OVERLAY_Z,
               width: 340,
               maxWidth: 'calc(100vw - 32px)',
               background: 'white',
@@ -483,6 +539,9 @@ function App() {
                       }}
                     >
                       <option value="">-- Chọn điểm xuất phát --</option>
+                      {routingFrom?.source === 'map' && (
+                        <option value={MAP_ORIGIN}>Điểm đã chọn trên bản đồ</option>
+                      )}
                       <option value={GPS_ORIGIN} disabled={!position}>
                         {position ? 'Vị trí của tôi' : 'Vị trí của tôi (chưa có GPS)'}
                       </option>
@@ -490,6 +549,25 @@ function App() {
                         <option key={p.id} value={p.id}>{p.name_vi}</option>
                       ))}
                     </select>
+                    <button
+                      onClick={() => setRoutePicking(!routePicking)}
+                      title="Chọn điểm xuất phát trên bản đồ"
+                      aria-label="Chọn điểm xuất phát trên bản đồ"
+                      aria-pressed={routePicking}
+                      style={{
+                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                        background: routePicking ? '#dbeafe' : '#f3f4f6',
+                        border: routePicking ? '1px solid #3b82f6' : 'none',
+                        color: routePicking ? '#1d4ed8' : '#6b7280',
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                    </button>
                     <button
                       onClick={swapRouting}
                       disabled={!canSwap}
@@ -563,6 +641,12 @@ function App() {
                       )}
                     </div>
 
+                    {!routingResult.meta?.fallback && (routingResult.meta?.off_network_m ?? 0) > 0 && (
+                      <div style={{ fontSize: 11, color: '#9a3412', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '6px 10px', marginBottom: 10 }}>
+                        Gồm khoảng {formatDistance(routingResult.meta!.off_network_m!)} đi thẳng (nét chấm cam) ở đoạn chưa có dữ liệu đường, ví dụ ngoài khuôn viên.
+                      </div>
+                    )}
+
                     {/* Steps */}
                     {routingResult.routes[0].legs?.[0]?.steps && routingResult.routes[0].legs[0].steps.length > 1 && (
                       <div style={{ maxHeight: 180, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -580,6 +664,9 @@ function App() {
                               <div>{step.instruction}</div>
                               <div style={{ color: '#9ca3af', fontSize: 11 }}>
                                 {formatDistance(step.distance)} • {formatDuration(step.duration)}
+                                {step.off_network && (
+                                  <span style={{ color: '#c2410c', marginLeft: 6 }}>• đi thẳng, chưa có dữ liệu đường</span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -591,7 +678,7 @@ function App() {
               </div>
             </div>
           )}
-        </BaseMap>
+        </>
       </main>
 
       {/* Place Detail Panel */}

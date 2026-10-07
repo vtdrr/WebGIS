@@ -83,11 +83,14 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 | DELETE | `/api/places/:id` | Xóa địa điểm (admin) |
 | GET | `/api/routing?from=lat,lng&to=lat,lng&mode=walk\|bike\|wheelchair` | Tuyến đường đi bộ/xe đạp/xe lăn |
 
-Routing chạy Dijkstra trên đồ thị `campus_paths` (các đường nội bộ trong khuôn viên). Nếu điểm đầu/điểm cuối nằm ngoài đồ thị (>500m), API trả về tuyến đường thẳng (đường chim bay) với `meta.fallback = true`.
+Routing chạy Dijkstra trên đồ thị `campus_paths` (các đường nội bộ trong khuôn viên). Điểm đi/đến nằm ngoài khuôn viên (ví dụ trạm xe buýt) được nối bằng một đoạn đi thẳng tới nút đường gần nhất (thử 3 nút gần nhất, đoạn ngoài mạng đường bị tính nặng gấp đôi để ưu tiên đường đã có). Các đoạn này có `off_network: true` trong `steps` và `meta.off_network_m` cho biết tổng quãng đi thẳng; giao diện vẽ chúng bằng nét chấm cam. Điểm cách khuôn viên quá 3 km trả về HTTP 422; chỉ khi đồ thị rỗng hoặc hai điểm không nối được thì trả đường chim bay (`meta.fallback = true`).
+
+Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật chế độ bấm lên bản đồ để chọn vị trí hiện tại (marker A kéo thả được); cũng có thể chọn điểm xuất phát từ danh sách.
 
 ## 🗺️ Dữ liệu không gian
 
 - Tâm bản đồ mặc định: Trường Đại học Phenikaa `[20.9626112, 105.7486864]`, zoom 17
+- Giới hạn kéo bản đồ: khu vực Hà Nội `[[20.85, 105.6], [21.15, 106.0]]`, zoom tối thiểu 11 (`MAP_BOUNDS`, `MAP_MIN_ZOOM` trong `frontend/src/types/index.ts`)
 - Street Map: `tile.openstreetmap.de` (OSM community server, OSM-derived) — attribution "© OpenStreetMap contributors"
 - Satellite: Esri World Imagery — attribution "Imagery © Esri, Maxar, Earthstar Geographics", `maxNativeZoom: 19` (Esri không có imagery z20 tại khu vực này)
 - `places.geom_point` — điểm đại diện (marker), SRID 4326

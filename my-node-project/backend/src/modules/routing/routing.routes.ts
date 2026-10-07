@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { routingService } from './routing.service.js';
+import { routingService, RoutingError } from './routing.service.js';
 
 // Plain JSON schema for routing query
 const routingQuerySchema = {
@@ -42,6 +42,9 @@ export async function routingRoutes(app: FastifyInstance) {
     try {
       return await routingService.findRoute(fromLat, fromLng, toLat, toLng, mode, alternatives);
     } catch (err: any) {
+      if (err instanceof RoutingError) {
+        return reply.code(err.statusCode).send({ message: err.message });
+      }
       request.log.error(err, 'Routing failed');
       return reply.code(500).send({ message: 'Routing failed', error: err.message });
     }

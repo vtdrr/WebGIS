@@ -33,6 +33,8 @@ interface RouteStep {
     modifier?: string;
   };
   instruction: string;
+  /** True for straight connector legs that are not on mapped campus paths */
+  off_network?: boolean;
 }
 
 export interface RouteResult {
@@ -59,7 +61,17 @@ export interface RouteResult {
     took_ms: number;
     fallback: boolean;
     nodes: number;
+    /** Straight-line distance (m) walked outside the mapped path network */
+    off_network_m?: number;
   };
+}
+
+/** Error with an HTTP status, so routes can return it to the client */
+export class RoutingError extends Error {
+  constructor(message: string, public statusCode = 422) {
+    super(message);
+    this.name = 'RoutingError';
+  }
 }
 
 // Walking / biking / wheelchair speeds (m/s)
@@ -69,7 +81,15 @@ const MODE_SPEED: Record<RoutingMode, number> = {
   wheelchair: 1.11, // ~4 km/h
 };
 
-const MAX_SNAP_DISTANCE_M = 500;
+/** Endpoints farther than this from every path node are rejected */
+export const MAX_ORIGIN_DISTANCE_M = 3000;
+/** How many nearest path nodes are tried as entry/exit points */
+const CANDIDATE_NODES = 3;
+/**
+ * Straight legs outside the mapped network count this many times when comparing entry
+ * points, so routes prefer following known paths over cutting across unmapped terrain.
+ */
+const OFF_NETWORK_PENALTY = 2;
 const GRAPH_CACHE_TTL_MS = 60_000;
 
 // =============================================
@@ -172,32 +192,17 @@ function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): num
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function snapToNode(lat: number, lng: number): Promise<{ node: GraphNode; distanceM: number } | null> {
-  const result = await query<{
-    code: string;
-    name_vi: string;
-    lng: number;
-    lat: number;
-    dist_m: number;
-  }>(`
-    SELECT
-      code,
-      name_vi,
-      ST_X(geom_point) AS lng,
-      ST_Y(geom_point) AS lat,
-      ST_Distance(geom_point::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS dist_m
-    FROM places
-    WHERE geom_point IS NOT NULL
-    ORDER BY geom_point <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
-    LIMIT 1
-  `, [lng, lat]);
+interface NodeSnap {
+  node: GraphNode;
+  distanceM: number;
+}
 
-  if (result.rows.length === 0) return null;
-  const row = result.rows[0];
-  return {
-    node: { code: row.code, name: row.name_vi, lng: row.lng, lat: row.lat },
-    distanceM: Number(row.dist_m),
-  };
+/** The k path-network nodes nearest to a point (straight-line distance), closest first. */
+export function nearestNodes(nodes: Map<string, GraphNode>, lat: number, lng: number, k = CANDIDATE_NODES): NodeSnap[] {
+  return [...nodes.values()]
+    .map((node) => ({ node, distanceM: haversineM(lat, lng, node.lat, node.lng) }))
+    .sort((x, y) => x.distanceM - y.distanceM)
+    .slice(0, k);
 }
 
 // Min-heap based Dijkstra
@@ -281,6 +286,15 @@ export function dijkstra(
 // =============================================
 
 export class RoutingService {
+  /**
+   * Route between two coordinates.
+   *
+   * Both endpoints are connected by a straight leg to a node of the campus path
+   * network (one of the nearest few, chosen to minimise the total length), and the
+   * route between those nodes follows the mapped paths. This lets people start
+   * outside the campus, e.g. at a bus stop: the leg to the entrance is flagged
+   * `off_network` because there is no path data outside the campus.
+   */
   async findRoute(
     fromLat: number,
     fromLng: number,
@@ -298,35 +312,49 @@ export class RoutingService {
       return this.fallbackRoute(fromLat, fromLng, toLat, toLng, speed, mode, start, 'Điểm xuất phát', 'Điểm đến');
     }
 
-    const fromSnap = await snapToNode(fromLat, fromLng);
-    const toSnap = await snapToNode(toLat, toLng);
+    const fromCandidates = nearestNodes(nodes, fromLat, fromLng);
+    const toCandidates = nearestNodes(nodes, toLat, toLng);
 
-    // If either endpoint is too far from the road network, return straight-line route
-    if (
-      !fromSnap || !toSnap ||
-      fromSnap.distanceM > MAX_SNAP_DISTANCE_M ||
-      toSnap.distanceM > MAX_SNAP_DISTANCE_M
-    ) {
-      return this.fallbackRoute(
-        fromLat, fromLng, toLat, toLng, speed, mode, start,
-        fromSnap?.node.name ?? 'Điểm xuất phát',
-        toSnap?.node.name ?? 'Điểm đến',
+    if (fromCandidates[0].distanceM > MAX_ORIGIN_DISTANCE_M) {
+      throw new RoutingError(
+        `Điểm xuất phát quá xa khuôn viên (${(fromCandidates[0].distanceM / 1000).toFixed(1)} km). Hãy chọn điểm gần trường hơn.`,
+      );
+    }
+    if (toCandidates[0].distanceM > MAX_ORIGIN_DISTANCE_M) {
+      throw new RoutingError(
+        `Điểm đến quá xa khuôn viên (${(toCandidates[0].distanceM / 1000).toFixed(1)} km).`,
       );
     }
 
-    const route = dijkstra(adjacency, fromSnap.node.code, toSnap.node.code);
-
-    if (!route || route.pathEdges.length === 0) {
-      return this.fallbackRoute(fromLat, fromLng, toLat, toLng, speed, mode, start, fromSnap.node.name, toSnap.node.name);
+    // Pick the entry/exit pair with the lowest cost (off-network legs are penalised)
+    let best: { fromSnap: NodeSnap; toSnap: NodeSnap; path: { distanceM: number; pathEdges: GraphEdge[] }; total: number } | null = null;
+    for (const fromSnap of fromCandidates) {
+      for (const toSnap of toCandidates) {
+        const path = dijkstra(adjacency, fromSnap.node.code, toSnap.node.code);
+        if (!path) continue;
+        const total = OFF_NETWORK_PENALTY * (fromSnap.distanceM + toSnap.distanceM) + path.distanceM;
+        if (!best || total < best.total) best = { fromSnap, toSnap, path, total };
+      }
     }
 
-    // Stitch geometry from edge coordinates
+    // Not connected, or both ends belong to the same node (no mapped path to follow)
+    if (!best || best.path.pathEdges.length === 0) {
+      return this.fallbackRoute(
+        fromLat, fromLng, toLat, toLng, speed, mode, start,
+        fromCandidates[0].node.name,
+        toCandidates[0].node.name,
+      );
+    }
+
+    const { fromSnap, toSnap, path: route } = best;
     const coordinates: Array<[number, number]> = [];
     const steps: RouteStep[] = [];
+    let offNetworkM = 0;
 
-    // Add leg from user position to first node
+    // Leg from the origin to the first path node
     const firstNode = fromSnap.node;
     if (fromSnap.distanceM > 1) {
+      offNetworkM += fromSnap.distanceM;
       coordinates.push([fromLng, fromLat]);
       steps.push({
         name: 'Đường đến điểm bắt đầu',
@@ -334,7 +362,8 @@ export class RoutingService {
         duration: fromSnap.distanceM / speed,
         geometry: { type: 'LineString', coordinates: [[fromLng, fromLat], [firstNode.lng, firstNode.lat]] },
         maneuver: { type: 'depart', location: [fromLng, fromLat] },
-        instruction: `Đi bộ đến ${firstNode.name} (${Math.round(fromSnap.distanceM)} m)`,
+        instruction: `Đi ${Math.round(fromSnap.distanceM)} m đến ${firstNode.name} (chưa có dữ liệu đường cho đoạn này)`,
+        off_network: true,
       });
     }
     coordinates.push([firstNode.lng, firstNode.lat]);
@@ -372,9 +401,10 @@ export class RoutingService {
       });
     }
 
-    // Add leg from last node to user destination
+    // Leg from the last path node to the destination
     const lastNode = toSnap.node;
     if (toSnap.distanceM > 1) {
+      offNetworkM += toSnap.distanceM;
       coordinates.push([toLng, toLat]);
       totalDistance += toSnap.distanceM;
       steps.push({
@@ -384,6 +414,7 @@ export class RoutingService {
         geometry: { type: 'LineString', coordinates: [[lastNode.lng, lastNode.lat], [toLng, toLat]] },
         maneuver: { type: 'arrive', location: [toLng, toLat] },
         instruction: `Đến ${lastNode.name}, còn ${Math.round(toSnap.distanceM)} m đến điểm đích`,
+        off_network: true,
       });
     }
 
@@ -416,6 +447,7 @@ export class RoutingService {
         took_ms: Date.now() - start,
         fallback: false,
         nodes: route.pathEdges.length + 1,
+        off_network_m: Math.round(offNetworkM),
       },
     };
   }

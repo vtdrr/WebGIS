@@ -13,6 +13,8 @@ export interface RoutePoint {
   name: string;
   /** Set when the point comes from a place (enables swapping origin/destination) */
   placeId?: string;
+  /** Where the point came from: GPS fix, a click on the map, or a known place */
+  source?: 'gps' | 'map' | 'place';
 }
 
 interface AppState {
@@ -77,7 +79,10 @@ interface AppState {
   routingError: string | null;
   routingMode: RoutingParams['mode'];
   setRoutingFrom: (point: RoutePoint | null) => void;
-  setRoutingOrigin: (origin: Place | { lat: number; lng: number; name: string } | null) => Promise<void>;
+  setRoutingOrigin: (origin: Place | { lat: number; lng: number; name: string; source?: RoutePoint['source'] } | null) => Promise<void>;
+  /** True while the user is choosing the route origin by clicking on the map */
+  routePicking: boolean;
+  setRoutePicking: (picking: boolean) => void;
   swapRouting: () => Promise<void>;
   setRoutingTo: (place: Place | null) => void;
   setRoutingMode: (mode: RoutingParams['mode']) => void;
@@ -237,6 +242,8 @@ export const useStore = create<AppState>()(
     routingError: null,
     routingMode: 'walk',
     setRoutingFrom: (point) => set({ routingFrom: point }),
+    routePicking: false,
+    setRoutePicking: (picking) => set({ routePicking: picking }),
     setRoutingTo: (place) => set({ routingTo: place }),
     setRoutingMode: (mode) => {
       set({ routingMode: mode });
@@ -251,7 +258,7 @@ export const useStore = create<AppState>()(
         return;
       }
       const from: RoutePoint = 'name_vi' in origin ? placeToRoutePoint(origin) : origin;
-      set({ routingFrom: from, routingError: null });
+      set({ routingFrom: from, routingError: null, routePicking: false });
       const { routingTo, routingMode } = get();
       if (routingTo) await get().fetchRoute(from, placeToRoutePoint(routingTo), routingMode);
     },
@@ -270,17 +277,19 @@ export const useStore = create<AppState>()(
     startRoutingTo: async (place, userPosition) => {
       // Without a GPS fix the user must pick an origin explicitly
       const from: RoutePoint | null = userPosition
-        ? { lat: userPosition.lat, lng: userPosition.lng, name: 'Vị trí của tôi' }
+        ? { lat: userPosition.lat, lng: userPosition.lng, name: 'Vị trí của tôi', source: 'gps' }
         : null;
       set({
         routingFrom: from,
         routingTo: place,
         routingResult: null,
         routingError: null,
+        // No GPS: let the user click their position on the map right away
+        routePicking: !from,
       });
       if (from) await get().fetchRoute(from, placeToRoutePoint(place), get().routingMode);
     },
-    clearRouting: () => set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null }),
+    clearRouting: () => set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null, routePicking: false }),
   }))
 );
 
@@ -288,9 +297,9 @@ export const useStore = create<AppState>()(
 function placeToRoutePoint(place: Place): RoutePoint {
   const coords = place.geom_point?.coordinates;
   if (coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
-    return { lat: coords[1], lng: coords[0], name: place.name_vi, placeId: place.id };
+    return { lat: coords[1], lng: coords[0], name: place.name_vi, placeId: place.id, source: 'place' };
   }
-  return { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: place.name_vi, placeId: place.id };
+  return { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: place.name_vi, placeId: place.id, source: 'place' };
 }
 
 // Route fetching helper

@@ -155,6 +155,8 @@ export interface RoutingStep {
     modifier?: string;
   };
   instruction?: string;
+  /** Straight connector leg that is not on mapped campus paths */
+  off_network?: boolean;
 }
 
 export interface RoutingResponse {
@@ -181,6 +183,8 @@ export interface RoutingResponse {
     took_ms: number;
     fallback?: boolean;
     nodes?: number;
+    /** Straight-line metres walked outside the mapped path network */
+    off_network_m?: number;
   };
 }
 
@@ -196,6 +200,13 @@ export const PHENIKAA_BOUNDS: [[number, number], [number, number]] = [
   [20.955, 105.741], // Southwest
   [20.970, 105.756]  // Northeast
 ];
+
+// Area users may pan around (Hanoi and surroundings) and the lowest zoom allowed there
+export const MAP_BOUNDS: [[number, number], [number, number]] = [
+  [20.85, 105.6],  // Southwest
+  [21.15, 106.0],  // Northeast
+];
+export const MAP_MIN_ZOOM = 11;
 
 export const PHENIKAA_CENTER: [number, number] = [20.9626112, 105.7486864];
 export const PHENIKAA_ZOOM = 17;

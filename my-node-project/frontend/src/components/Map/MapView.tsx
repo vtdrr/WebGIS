@@ -3,13 +3,13 @@
 // =============================================
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, useMap, GeoJSON as GeoJSONComponent, LayersControl, Marker, Circle, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, useMapEvents, GeoJSON as GeoJSONComponent, LayersControl, Marker, Circle, Popup } from 'react-leaflet';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import L from 'leaflet';
-import type { Place, Category } from '../../types';
-import { PHENIKAA_CENTER, PHENIKAA_ZOOM, PHENIKAA_BOUNDS } from '../../types';
+import type { Place, Category, RoutingResponse } from '../../types';
+import { PHENIKAA_CENTER, PHENIKAA_ZOOM, MAP_BOUNDS, MAP_MIN_ZOOM } from '../../types';
 import { useMapSync, createMarkerIcon } from '../../hooks/useMap';
 import { useStore } from '../../store/useStore';
 
@@ -39,8 +39,9 @@ export function BaseMap({ children }: { children: React.ReactNode }) {
     <MapContainer
       center={PHENIKAA_CENTER}
       zoom={PHENIKAA_ZOOM}
-      maxBounds={PHENIKAA_BOUNDS}
-      minZoom={15}
+      maxBounds={MAP_BOUNDS}
+      maxBoundsViscosity={1}
+      minZoom={MAP_MIN_ZOOM}
       maxZoom={20}
       style={{ height: '100%', width: '100%' }}
       scrollWheelZoom={true}
@@ -331,26 +332,163 @@ export function UserLocation({ position, accuracy }: UserLocationProps) {
 // =============================================
 // Routing Layer
 // =============================================
+type RouteData = RoutingResponse['routes'][number];
+
 interface RoutingLayerProps {
-  route: GeoJSON.LineString | null;
+  route: RouteData | null;
+  /** Straight line with no path data at all */
+  fallback?: boolean;
 }
 
-export function RoutingLayer({ route }: RoutingLayerProps) {
+const ROUTE_STYLE_ON_PATH = { color: '#2563eb', weight: 5, opacity: 0.85, lineCap: 'round', lineJoin: 'round' } as const;
+const ROUTE_STYLE_OFF_NETWORK = { color: '#f97316', weight: 4, opacity: 0.9, dashArray: '2,8', lineCap: 'round' } as const;
+
+export function RoutingLayer({ route, fallback }: RoutingLayerProps) {
   if (!route) return null;
 
+  const steps = route.legs?.[0]?.steps;
+  const hasStepGeometry = !!steps?.length && steps.every((s) => typeof s.geometry !== 'string');
+
+  // Draw each step so off-network legs (no path data) look different from mapped paths
+  if (hasStepGeometry && !fallback) {
+    return (
+      <>
+        {steps!.map((step, i) => (
+          <GeoJSONComponent
+            key={`${i}-${step.off_network ? 'off' : 'on'}-${step.distance}`}
+            data={step.geometry as GeoJSON.LineString}
+            style={() => (step.off_network ? ROUTE_STYLE_OFF_NETWORK : ROUTE_STYLE_ON_PATH)}
+          />
+        ))}
+      </>
+    );
+  }
+
+  if (typeof route.geometry === 'string') return null;
   return (
     <GeoJSONComponent
-      data={route}
-      style={() => ({
-        color: '#3b82f6',
-        weight: 5,
-        opacity: 0.8,
-        dashArray: '10,10',
-        lineCap: 'round',
-        lineJoin: 'round',
-      })}
+      key={`${route.distance}-${route.duration}`}
+      data={route.geometry}
+      style={() => (fallback ? ROUTE_STYLE_OFF_NETWORK : ROUTE_STYLE_ON_PATH)}
     />
   );
+}
+
+// =============================================
+// Route endpoints (origin / destination markers)
+// =============================================
+function endpointIcon(color: string, label: string): L.DivIcon {
+  return L.divIcon({
+    html: `<div style="width: 26px; height: 26px; border-radius: 50%; background: ${color}; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;">${label}</div>`,
+    className: 'route-endpoint-marker',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}
+
+const ORIGIN_ICON = endpointIcon('#16a34a', 'A');
+const DESTINATION_ICON = endpointIcon('#dc2626', 'B');
+
+export function RouteEndpoints() {
+  const routingFrom = useStore((s) => s.routingFrom);
+  const routingTo = useStore((s) => s.routingTo);
+  const setRoutingOrigin = useStore((s) => s.setRoutingOrigin);
+
+  const destination = routingTo?.geom_point?.coordinates;
+  // GPS already has its own marker; only mark picked points and places
+  const showOrigin = routingFrom && routingFrom.source !== 'gps';
+  const draggable = routingFrom?.source === 'map';
+
+  return (
+    <>
+      {showOrigin && (
+        <Marker
+          key={`from-${routingFrom.lat}-${routingFrom.lng}`}
+          position={[routingFrom.lat, routingFrom.lng]}
+          icon={ORIGIN_ICON}
+          draggable={draggable}
+          zIndexOffset={900}
+          eventHandlers={
+            draggable
+              ? {
+                  dragend: (e) => {
+                    const { lat, lng } = (e.target as L.Marker).getLatLng();
+                    setRoutingOrigin({ lat, lng, name: 'Điểm đã chọn trên bản đồ', source: 'map' });
+                  },
+                }
+              : undefined
+          }
+        >
+          {draggable && <Popup>Kéo để đổi điểm xuất phát</Popup>}
+        </Marker>
+      )}
+      {destination && Number.isFinite(destination[0]) && Number.isFinite(destination[1]) && (
+        <Marker position={[destination[1], destination[0]]} icon={DESTINATION_ICON} zIndexOffset={900} />
+      )}
+    </>
+  );
+}
+
+// =============================================
+// Pick the route origin by clicking on the map
+// =============================================
+export function RoutePicker() {
+  const map = useMap();
+  const routePicking = useStore((s) => s.routePicking);
+  const setRoutePicking = useStore((s) => s.setRoutePicking);
+  const setRoutingOrigin = useStore((s) => s.setRoutingOrigin);
+
+  useMapEvents({
+    click: (e) => {
+      if (!useStore.getState().routePicking) return;
+      setRoutingOrigin({
+        lat: e.latlng.lat,
+        lng: e.latlng.lng,
+        name: 'Điểm đã chọn trên bản đồ',
+        source: 'map',
+      });
+    },
+  });
+
+  // Crosshair cursor while picking
+  useEffect(() => {
+    const container = map.getContainer();
+    container.style.cursor = routePicking ? 'crosshair' : '';
+    return () => {
+      container.style.cursor = '';
+    };
+  }, [map, routePicking]);
+
+  // Escape cancels picking
+  useEffect(() => {
+    if (!routePicking) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRoutePicking(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [routePicking, setRoutePicking]);
+
+  return null;
+}
+
+// =============================================
+// Zoom to the route when a new one arrives
+// =============================================
+export function RouteFit() {
+  const map = useMap();
+  const route = useStore((s) => s.routingResult?.routes?.[0]);
+
+  useEffect(() => {
+    if (!route || typeof route.geometry === 'string') return;
+    const coords = route.geometry.coordinates;
+    if (!coords || coords.length < 2) return;
+    const bounds = L.latLngBounds(coords.map(([lng, lat]) => [lat, lng] as [number, number]));
+    // Leave room for the route panel on the right and the controls on top
+    map.fitBounds(bounds, { paddingTopLeft: [40, 80], paddingBottomRight: [380, 40], maxZoom: 18 });
+  }, [map, route]);
+
+  return null;
 }
 
 // =============================================
