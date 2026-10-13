@@ -1,18 +1,11 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, useMap, LayersControl, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, LayersControl, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import './leafletSetup';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM, MAP_BOUNDS, MAP_MIN_ZOOM } from '../../types';
 import { useMapSync } from '../../hooks/useMap';
 import { useStore } from '../../store/useStore';
 import { useT } from '../../i18n/useT';
-
-const CAMPUS_ICON = L.divIcon({
-  html: `<div style="width: 14px; height: 14px; border-radius: 50%; background: #1e3a8a; border: 3px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.4);"></div>`,
-  className: 'campus-marker',
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
-});
 
 export function BaseMap({ children }: { children: React.ReactNode }) {
   const { t } = useT();
@@ -24,6 +17,7 @@ export function BaseMap({ children }: { children: React.ReactNode }) {
       maxBoundsViscosity={1}
       minZoom={MAP_MIN_ZOOM}
       maxZoom={20}
+      zoomControl={false}
       style={{ height: '100%', width: '100%' }}
       scrollWheelZoom={true}
       doubleClickZoom={true}
@@ -49,17 +43,101 @@ export function BaseMap({ children }: { children: React.ReactNode }) {
           />
         </LayersControl.BaseLayer>
       </LayersControl>
-      <Marker position={PHENIKAA_CENTER} icon={CAMPUS_ICON}>
-        <Popup>
-          <strong>{t('app.campus')}</strong>
-        </Popup>
-      </Marker>
+      <ZoomControl position="topleft" />
       {children}
+      <MapGeometrySync />
       <MapSync />
       <MapFlyTo />
       <MapResetController />
     </MapContainer>
   );
+}
+
+/** Re-sync Leaflet's vector renderer after a pan or a map-container resize. */
+function MapGeometrySync() {
+  const map = useMap();
+  const selectedPlace = useStore((state) => state.selectedPlace);
+
+  useEffect(() => {
+    const redrawGeoJson = () => {
+      map.eachLayer((layer) => {
+        if (!(layer instanceof L.GeoJSON)) return;
+        layer.eachLayer((feature) => {
+          if (feature instanceof L.Path) feature.redraw();
+        });
+      });
+    };
+
+    map.on('moveend', redrawGeoJson);
+
+    let frame: number | null = null;
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+    const container = map.getContainer();
+    let observedWidth = container.clientWidth;
+    let observedHeight = container.clientHeight;
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(() => {
+          if (resizeTimer !== null) clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            resizeTimer = null;
+            frame = requestAnimationFrame(() => {
+              frame = null;
+              const width = container.clientWidth;
+              const height = container.clientHeight;
+              if (width === observedWidth && height === observedHeight) return;
+              observedWidth = width;
+              observedHeight = height;
+
+              map.invalidateSize({ pan: false });
+              redrawGeoJson();
+
+              const coordinates = selectedPlace?.geom_point?.coordinates;
+              if (coordinates && Number.isFinite(coordinates[0]) && Number.isFinite(coordinates[1])) {
+                const zoom = map.getZoom();
+                const center = centerForVisiblePlace(map, [coordinates[1], coordinates[0]], zoom);
+                map.flyTo(center, zoom, { duration: 0.35 });
+              }
+            });
+          }, 100);
+        });
+    observer?.observe(container);
+
+    return () => {
+      map.off('moveend', redrawGeoJson);
+      observer?.disconnect();
+      if (resizeTimer !== null) clearTimeout(resizeTimer);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [map, selectedPlace]);
+
+  return null;
+}
+
+/** Return the pixel offset from the map center to the unobstructed map center. */
+function visibleAreaOffset(map: L.Map): L.Point {
+  const panel = document.querySelector<HTMLElement>('.detail');
+  if (!panel) return L.point(0, 0);
+
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
+
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    const panelTop = viewportHeight - panel.offsetHeight;
+    const coveredHeight = Math.max(0, Math.min(mapRect.bottom, viewportHeight) - Math.max(mapRect.top, panelTop));
+    return L.point(0, coveredHeight / 2);
+  }
+
+  const panelLeft = viewportWidth - panel.offsetWidth;
+  const coveredWidth = Math.max(0, Math.min(mapRect.right, viewportWidth) - Math.max(mapRect.left, panelLeft));
+  return L.point(coveredWidth / 2, 0);
+}
+
+/** Calculate the map center that places a place at the visible area's center. */
+function centerForVisiblePlace(map: L.Map, place: L.LatLngExpression, zoom: number): L.LatLng {
+  const offset = visibleAreaOffset(map);
+  return map.unproject(map.project(place, zoom).add(offset), zoom);
 }
 
 /** Fly to the selected place when it changes. */
@@ -71,7 +149,9 @@ function MapFlyTo() {
     if (selectedPlace?.geom_point?.coordinates) {
       const [lng, lat] = selectedPlace.geom_point.coordinates;
       if (Number.isFinite(lng) && Number.isFinite(lat)) {
-        map.flyTo([lat, lng], 18, { duration: 0.8 });
+        const zoom = 18;
+        const center = centerForVisiblePlace(map, [lat, lng], zoom);
+        map.flyTo(center, zoom, { duration: 0.8 });
       }
     }
   }, [selectedPlace, map]);

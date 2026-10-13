@@ -80,13 +80,13 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-.leaflet-control-zoom a {
+.leaflet-container .leaflet-control-zoom.leaflet-bar a {
   background: var(--white);
   color: var(--gray-700);
   border: none;
-  width: 36px;
-  height: 36px;
-  line-height: 36px;
+  width: 42px;
+  height: 42px;
+  line-height: 42px;
   font-size: 18px;
   transition: background var(--transition);
 }
@@ -107,58 +107,6 @@ body {
 .leaflet-control-attribution {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(4px);
-}
-
-.leaflet-marker-icon {
-  transition: transform var(--transition);
-}
-
-.leaflet-marker-icon:hover {
-  transform: scale(1.1);
-  z-index: 1000 !important;
-}
-
-/* Marker cluster */
-.marker-cluster {
-  background: transparent !important;
-}
-
-.marker-cluster div {
-  background: transparent !important;
-  border: none !important;
-}
-
-.marker-cluster span {
-  background: var(--primary) !important;
-  border: 3px solid var(--white) !important;
-  box-shadow: var(--shadow-md);
-  border-radius: 50%;
-  color: white;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.marker-cluster-small span {
-  width: 30px;
-  height: 30px;
-  font-size: 12px;
-  background: var(--success) !important;
-}
-
-.marker-cluster-medium span {
-  width: 40px;
-  height: 40px;
-  font-size: 14px;
-  background: var(--warning) !important;
-}
-
-.marker-cluster-large span {
-  width: 50px;
-  height: 50px;
-  font-size: 16px;
-  background: var(--danger) !important;
 }
 
 /* Custom scrollbar */
@@ -184,6 +132,15 @@ body {
 *:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* Browsers render SVG path focus as a rectangular box around the feature bounds. */
+.leaflet-container .leaflet-interactive:focus,
+.leaflet-container .leaflet-interactive:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  filter: none;
 }
 
 /* Selection */

@@ -11,7 +11,7 @@ my-node-project/
 │   │   ├── modules/
 │   │   │   ├── categories/   # CRUD danh mục địa điểm
 │   │   │   ├── places/       # CRUD + tìm kiếm + nearby + GeoJSON
-│   │   │   ├── routing/      # Chỉ đường (Dijkstra trên đồ thị campus_paths)
+│   │   │   ├── routing/      # Chỉ đường Dijkstra trên mạng đi bộ OSM
 │   │   │   └── common/       # Zod schemas & types
 │   │   ├── db/               # Connection pool, migrate, seed
 │   │   ├── config/           # Env validation (zod)
@@ -19,7 +19,7 @@ my-node-project/
 │   └── sql/init.sql          # Schema + seed data (chạy tự động khi khởi tạo DB)
 ├── frontend/                 # Web app (React 18 + Vite + TypeScript + Leaflet)
 │   └── src/
-│       ├── components/Map/   # BaseMap, PlacesLayer (marker cluster), BuildingsLayer, RoutingLayer
+│       ├── components/Map/   # BaseMap, BuildingsLayer, RoutingLayer, route picking/fit
 │       ├── components/UI/    # SearchBar, CategoryFilter, PlaceCard, PlaceDetailPanel
 │       ├── hooks/            # useGeolocation, createMarkerIcon, useMapSync...
 │       ├── services/api.ts   # API client
@@ -37,17 +37,19 @@ cd my-node-project
 # 1. Khởi động database (PostGIS) — tự động tạo schema + seed
 docker compose up -d db
 
-# 2. Chạy backend
-cd backend
+# 2. Terminal 1 — backend
+cd my-node-project/backend
 npm install
 cp .env.example .env      # Windows: copy .env.example .env
 npm run db:migrate        # đồng bộ schema (idempotent)
-npm run db:seed           # kiểm tra dữ liệu
+npm run db:seed           # kiểm tra dữ liệu mẫu
+npm run db:import-osm-paths # tải mạng đường đi bộ OSM quanh Phenikaa
+npm run db:import-osm-places # đồng bộ các địa điểm OSM trong phạm vi khuôn viên
 npm run dev               # dev mode (tsx watch) — http://localhost:3000
 # hoặc: npm run build && npm start
 
-# 3. Chạy frontend
-cd ../frontend
+# 3. Terminal 2 — mở terminal mới, giữ backend chạy ở Terminal 1
+cd my-node-project/frontend
 npm install
 npm run dev               # http://localhost:5173 (proxy /api -> :3000)
 ```
@@ -83,9 +85,13 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 | DELETE | `/api/places/:id` | Xóa địa điểm (admin) |
 | GET | `/api/routing?from=lat,lng&to=lat,lng&mode=walk\|bike\|wheelchair` | Tuyến đường đi bộ/xe đạp/xe lăn |
 
-Routing chạy Dijkstra trên đồ thị `campus_paths` (các đường nội bộ trong khuôn viên). Điểm đi/đến nằm ngoài khuôn viên (ví dụ trạm xe buýt) được nối bằng một đoạn đi thẳng tới nút đường gần nhất (thử 3 nút gần nhất, đoạn ngoài mạng đường bị tính nặng gấp đôi để ưu tiên đường đã có). Các đoạn này có `off_network: true` trong `steps` và `meta.off_network_m` cho biết tổng quãng đi thẳng; giao diện vẽ chúng bằng nét chấm cam. Điểm cách khuôn viên quá 3 km trả về HTTP 422; chỉ khi đồ thị rỗng hoặc hai điểm không nối được thì trả đường chim bay (`meta.fallback = true`).
+Routing ưu tiên mạng đi bộ OSM trong `campus_routing_nodes` / `campus_routing_edges`, chạy Dijkstra trên hình học đường thật. Chạy `npm run db:import-osm-paths` để lấy dữ liệu quanh trường (bbox mặc định: `20.956,105.742,20.970,105.756`); có thể đổi bằng `--bbox=south,west,north,east`. Lệnh này cần kết nối internet tới Overpass API và thay thế dữ liệu trong hai bảng mạng OSM, không đụng tới địa điểm hay `campus_paths`. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
 
-Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật chế độ bấm lên bản đồ để chọn vị trí hiện tại (marker A kéo thả được); cũng có thể chọn điểm xuất phát từ danh sách.
+`npm run db:import-osm-places` đồng bộ các feature đã xác nhận từ Overpass (`20.958,105.744,20.966,105.753`), thay record mẫu OSM, giữ địa điểm admin và upsert các điểm bổ sung do người dùng cung cấp. Danh sách gồm A1–A8 (giảng đường 7 tầng), A9–A10 (tòa nhà chính), B1–B4 (thực hành kỹ thuật), 3 ký túc xá, 2 căng tin, sân bóng, nhà thi đấu, y tế học đường, thư viện A10 (tầng 4–6), 2 cổng, sân tennis và 4 bãi giữ xe. Các danh mục “Phòng ban hành chính” và “Khác” bị ẩn; quảng trường bị loại. Điểm nhập thủ công được đồng bộ lặp lại theo code ổn định và không bị xóa khi cập nhật OSM. OSM node/way vẫn được nhận diện bằng ID; không tự đặt tên cho đối tượng OSM thiếu tên. Bản đồ dùng tile nền OSM và polygon feature, không chồng icon marker POI.
+
+Điểm đi/đến ngoài mạng được nối tới nút gần nhất bằng đoạn thẳng; `off_network: true` và `meta.off_network_m` thể hiện phần này, giao diện vẽ nét chấm cam. Điểm cách mạng đường quá 3 km trả HTTP 422. `campus_paths` vẫn được giữ làm graph cũ nếu chưa nạp OSM; đường chim bay (`meta.fallback = true`) chỉ dùng khi không có tuyến nối được.
+
+Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật chế độ bấm lên bản đồ để chọn vị trí hiện tại; cũng có thể chọn điểm xuất phát từ danh sách. Không vẽ marker cho POI, vị trí GPS hay điểm đầu/cuối; tuyến đường và vòng chọn điểm vẫn hoạt động.
 
 ## 🗺️ Dữ liệu không gian
 
@@ -93,17 +99,20 @@ Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật ch�
 - Giới hạn kéo bản đồ: khu vực Hà Nội `[[20.85, 105.6], [21.15, 106.0]]`, zoom tối thiểu 11 (`MAP_BOUNDS`, `MAP_MIN_ZOOM` trong `frontend/src/types/index.ts`)
 - Street Map: `tile.openstreetmap.de` (OSM community server, OSM-derived) — attribution "© OpenStreetMap contributors"
 - Satellite: Esri World Imagery — attribution "Imagery © Esri, Maxar, Earthstar Geographics", `maxNativeZoom: 19` (Esri không có imagery z20 tại khu vực này)
-- `places.geom_point` — điểm đại diện (marker), SRID 4326
+- `places.geom_point` — điểm đại diện để tìm kiếm, định tuyến và đưa bản đồ tới vị trí; POI không vẽ marker
 - `places.geom_polygon` — footprint tòa nhà/vùng đất
+- `places.source`, `places.osm_type`, `places.osm_id` — nguồn dữ liệu và OSM identity để cập nhật an toàn
 - `places.search_tsv` — tsvector (generated, config `simple`, qua `f_unaccent`) có trọng số: tên (A) > mã + tên tiếng Anh (B) > mô tả (C)
 - Chỉ mục GIST cho geometry, GIN cho full-text + trigram
 - `campus_paths` — đồ thị đường đi: cạnh giữa 2 địa điểm có `geom` LineString + `distance_m`
+- `campus_routing_nodes` / `campus_routing_edges` — nút giao và các đoạn đường đi bộ OSM, có LineString thật để định tuyến
 
 ## 📋 Tiến độ
 
 - [x] Backend API: categories, places (CRUD, filter, search, nearby, GeoJSON), routing
 - [x] Database: PostGIS schema, migrations, seed, docker-compose
-- [x] Frontend: bản đồ Leaflet (marker cluster, polygon layer), tìm kiếm, lọc danh mục, chỉ đường, geolocation
+- [x] Frontend: bản đồ Leaflet, tìm kiếm, lọc danh mục, chỉ đường và geolocation (không vẽ POI markers)
+- [x] Routing Dijkstra trên mạng lối đi OSM (có thể cập nhật bằng `db:import-osm-paths`)
 - [x] Swagger/OpenAPI documentation tại `/docs`
 - [ ] (Phase 5) Tích hợp OSRM/pgRouting cho routing trên đường thật
 - [ ] (Phase 5) Admin panel quản lý địa điểm (upload hình ảnh, vẽ polygon)
@@ -111,7 +120,7 @@ Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật ch�
 
 ## 🔧 Scripts
 
-**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` | `npm run db:reset` | `npm run lint` | `npm run typecheck` | `npm test`
+**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` | `npm run db:import-osm-paths` | `npm run db:import-osm-places` | `npm run db:reset` | `npm run lint` | `npm run typecheck` | `npm test`
 
 **Frontend:** `npm run dev` | `npm run build` | `npm run preview` | `npm run lint`
 

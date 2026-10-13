@@ -61,9 +61,13 @@ CREATE TABLE places (
   contact_email   VARCHAR(100),
   images          JSONB DEFAULT '[]'::jsonb,        -- [{"url": "...", "caption": "..."}]
   attributes      JSONB DEFAULT '{}'::jsonb,        -- Flexible: capacity, equipment, wheelchair_access, has_wifi, has_ac...
+  source          VARCHAR(20) NOT NULL DEFAULT 'manual' CHECK (source IN ('sample', 'manual', 'osm')),
+  osm_type        VARCHAR(8),
+  osm_id          BIGINT,
 
   created_at      TIMESTAMPTZ DEFAULT now(),
-  updated_at      TIMESTAMPTZ DEFAULT now()
+  updated_at      TIMESTAMPTZ DEFAULT now(),
+  CHECK ((osm_type IS NULL) = (osm_id IS NULL))
 );
 
 COMMENT ON TABLE places IS 'Các địa điểm cụ thể trong khuôn viên trường';
@@ -80,6 +84,8 @@ CREATE INDEX idx_places_geom_polygon ON places USING GIST (geom_polygon);
 CREATE INDEX idx_places_category ON places (category_id);
 CREATE INDEX idx_places_code ON places (code);
 CREATE INDEX idx_places_floor ON places (floor);
+CREATE INDEX idx_places_source ON places (source);
+CREATE UNIQUE INDEX idx_places_osm_identity ON places (osm_type, osm_id);
 
 -- Full-text search (using 'simple' config for multilingual support)
 -- 'simple' config works for any language without stemming.
@@ -162,6 +168,9 @@ ON CONFLICT (code) DO UPDATE SET
   icon = EXCLUDED.icon,
   color = EXCLUDED.color,
   sort_order = EXCLUDED.sort_order;
+
+UPDATE categories SET is_active = false WHERE code IN ('admin', 'other');
+UPDATE categories SET name_vi = 'Bãi giữ xe', name_en = 'Parking' WHERE code = 'parking';
 
 -- =============================================
 -- Sample places (will be replaced by real data import)
@@ -263,6 +272,10 @@ SELECT c.id, 'GATE-N', 'Cổng Bắc', 'North Gate',
 FROM categories c WHERE c.code = 'gate'
 ON CONFLICT (code) DO NOTHING;
 
+-- These rows are illustrative only. The OSM importer replaces them with mapped features.
+UPDATE places SET source = 'sample'
+WHERE code IN ('A1-MAIN', 'A1-101', 'LIB-MAIN', 'CAN-MAIN', 'ADM-MAIN', 'DOR-A', 'PK-MAIN', 'SPT-MAIN', 'GATE-S', 'GATE-N');
+
 -- =============================================
 -- Campus paths (routing graph)
 -- =============================================
@@ -280,6 +293,30 @@ CREATE TABLE IF NOT EXISTS campus_paths (
 COMMENT ON TABLE campus_paths IS 'Đồ thị đường đi trong khuôn viên (dùng cho routing)';
 
 CREATE INDEX IF NOT EXISTS idx_campus_paths_geom ON campus_paths USING GIST (geom);
+
+-- OSM pedestrian network used by the router. Nodes are OSM junctions and
+-- edges retain the detailed LineString geometry between junctions.
+CREATE TABLE IF NOT EXISTS campus_routing_nodes (
+  osm_node_id BIGINT PRIMARY KEY,
+  geom GEOMETRY(Point, 4326) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS campus_routing_edges (
+  id BIGSERIAL PRIMARY KEY,
+  source_way_id BIGINT NOT NULL,
+  segment_index INTEGER NOT NULL,
+  from_node_id BIGINT NOT NULL REFERENCES campus_routing_nodes(osm_node_id) ON DELETE CASCADE,
+  to_node_id BIGINT NOT NULL REFERENCES campus_routing_nodes(osm_node_id) ON DELETE CASCADE,
+  distance_m DOUBLE PRECISION NOT NULL CHECK (distance_m > 0),
+  name TEXT NOT NULL,
+  highway TEXT NOT NULL,
+  geom GEOMETRY(LineString, 4326) NOT NULL,
+  UNIQUE (source_way_id, segment_index),
+  CHECK (from_node_id <> to_node_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_campus_routing_nodes_geom ON campus_routing_nodes USING GIST (geom);
+CREATE INDEX IF NOT EXISTS idx_campus_routing_edges_geom ON campus_routing_edges USING GIST (geom);
 
 -- Walking paths between campus landmarks (distances computed automatically)
 INSERT INTO campus_paths (source_code, target_code, distance_m, path_name, geom)

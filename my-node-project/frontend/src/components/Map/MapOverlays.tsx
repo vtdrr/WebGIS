@@ -22,6 +22,14 @@ export function MapOverlays({ geoError, geoLoading, onLocate }: MapOverlaysProps
 
   return (
     <>
+      <div className="map-identity" aria-hidden="true">
+        <span className="map-identity__mark">P</span>
+        <span className="map-identity__copy">
+          <span className="map-identity__eyebrow">{t('app.campus')}</span>
+          <strong>{t('app.subtitle')}</strong>
+        </span>
+      </div>
+
       {/* Mobile only: the place list is a drawer, so it needs an opener */}
       {!sidebarOpen && (
         <button type="button" className="fab fab--list" onClick={() => setSidebarOpen(true)} aria-label={t('sidebar.open')}>

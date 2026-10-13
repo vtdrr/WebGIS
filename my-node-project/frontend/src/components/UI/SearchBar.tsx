@@ -16,6 +16,7 @@ export function SearchBar({ onSelect }: SearchBarProps) {
   const { t, placeName, placeCategory } = useT();
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -61,25 +62,49 @@ export function SearchBar({ onSelect }: SearchBarProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
     setSearchQuery(e.target.value);
+    setShowResults(false);
+    setActiveIndex(-1);
   };
 
   const handleSelect = (place: Place) => {
     setShowResults(false);
+    setActiveIndex(-1);
     inputRef.current?.blur();
     onSelect(place);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setShowResults(false);
+      setActiveIndex(-1);
+      return;
+    }
+
+    if (!open || searchResults.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((current) => current < 0 ? 0 : (current + 1) % searchResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((current) => current < 0 ? searchResults.length - 1 : (current - 1 + searchResults.length) % searchResults.length);
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      handleSelect(searchResults[activeIndex]);
+    }
   };
 
   const handleClear = () => {
     setQuery('');
     clearSearch();
     setShowResults(false);
+    setActiveIndex(-1);
     inputRef.current?.focus();
   };
 
   const open = showResults && query.trim() !== '';
 
   return (
-    <div ref={containerRef} className="search" onKeyDown={(e) => e.key === 'Escape' && setShowResults(false)}>
+    <div ref={containerRef} className="search">
       <span className="search__icon">
         <Icon name="search" size={18} />
       </span>
@@ -89,10 +114,12 @@ export function SearchBar({ onSelect }: SearchBarProps) {
         role="combobox"
         aria-expanded={open}
         aria-controls="search-results"
+        aria-activedescendant={open && activeIndex >= 0 ? `search-option-${searchResults[activeIndex]?.id}` : undefined}
         aria-label={t('search.placeholder')}
         className="search__input"
         value={query}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         onFocus={() => query.trim() && setShowResults(true)}
         placeholder={t('search.placeholder')}
         autoComplete="off"
@@ -110,13 +137,15 @@ export function SearchBar({ onSelect }: SearchBarProps) {
             <div className="search__status search__status--muted">{t('search.noResults', { query })}</div>
           )}
           {!searchLoading &&
-            searchResults.map((place) => (
+            searchResults.map((place, index) => (
               <button
                 key={place.id}
+                id={`search-option-${place.id}`}
                 type="button"
                 role="option"
-                aria-selected={false}
-                className="search__result"
+                aria-selected={activeIndex === index}
+                className={`search__result${activeIndex === index ? ' is-active' : ''}`}
+                onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => handleSelect(place)}
               >
                 <span className="dot" style={{ background: place.category_color || '#3388ff' }} />

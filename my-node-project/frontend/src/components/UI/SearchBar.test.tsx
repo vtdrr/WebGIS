@@ -78,4 +78,22 @@ describe('SearchBar', () => {
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' });
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
+
+  it('moves through suggestions with arrow keys and selects with Enter', () => {
+    const first = makePlace({ id: 'place-1', name_vi: 'Tòa A1' });
+    const second = makePlace({ id: 'place-2', name_vi: 'Tòa A2' });
+    const onSelect = vi.fn();
+    useStore.setState({ searchResults: [first, second] });
+    render(<SearchBar onSelect={onSelect} />);
+    const input = screen.getByRole('combobox');
+    type('toa');
+    act(() => void vi.advanceTimersByTime(300));
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: /Tòa A1/ })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input).toHaveAttribute('aria-activedescendant', 'search-option-place-2');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith(second);
+  });
 });

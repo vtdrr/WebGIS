@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type pg from 'pg';
 import { pool } from './pool.js';
 
@@ -271,7 +272,7 @@ function toWkt(rings: number[][][]): string {
 // CLI: npm run db:import-places -- <file.csv|file.geojson> [--dry-run]
 // ---------------------------------------------------------------------------
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const file = args.find((a) => !a.startsWith('--'));

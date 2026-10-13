@@ -11,6 +11,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:import-places": "tsx src/db/importPlaces.ts",
+    "db:import-osm-paths": "tsx src/db/importOsmPaths.ts",
+    "db:import-osm-places": "tsx src/db/importOsmPlaces.ts",
     "db:reset": "npm run db:migrate && npm run db:seed",
     "lint": "eslint src tests --ext .ts",
     "format": "prettier --write src",

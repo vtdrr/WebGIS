@@ -1,62 +1,8 @@
 import { useEffect } from 'react';
-import { Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { useStore } from '../../store/useStore';
 import { useT } from '../../i18n/useT';
-
-function endpointIcon(color: string, label: string): L.DivIcon {
-  return L.divIcon({
-    html: `<div style="width: 26px; height: 26px; border-radius: 50%; background: ${color}; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;">${label}</div>`,
-    className: 'route-endpoint-marker',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-  });
-}
-
-const ORIGIN_ICON = endpointIcon('#16a34a', 'A');
-const DESTINATION_ICON = endpointIcon('#dc2626', 'B');
-
-/** Origin (A) and destination (B) markers. A picked origin can be dragged. */
-export function RouteEndpoints() {
-  const { t } = useT();
-  const routingFrom = useStore((s) => s.routingFrom);
-  const routingTo = useStore((s) => s.routingTo);
-  const setRoutingOrigin = useStore((s) => s.setRoutingOrigin);
-
-  const destination = routingTo?.geom_point?.coordinates;
-  // GPS already has its own marker; only mark picked points and places
-  const showOrigin = routingFrom && routingFrom.source !== 'gps';
-  const draggable = routingFrom?.source === 'map';
-
-  return (
-    <>
-      {showOrigin && (
-        <Marker
-          key={`from-${routingFrom.lat}-${routingFrom.lng}`}
-          position={[routingFrom.lat, routingFrom.lng]}
-          icon={ORIGIN_ICON}
-          draggable={draggable}
-          zIndexOffset={900}
-          eventHandlers={
-            draggable
-              ? {
-                  dragend: (e) => {
-                    const { lat, lng } = (e.target as L.Marker).getLatLng();
-                    setRoutingOrigin({ lat, lng, name: t('map.pickedPoint'), source: 'map' });
-                  },
-                }
-              : undefined
-          }
-        >
-          {draggable && <Popup>{t('map.dragToChange')}</Popup>}
-        </Marker>
-      )}
-      {destination && Number.isFinite(destination[0]) && Number.isFinite(destination[1]) && (
-        <Marker position={[destination[1], destination[0]]} icon={DESTINATION_ICON} zIndexOffset={900} />
-      )}
-    </>
-  );
-}
 
 /** Lets the user pick the route origin by clicking on the map. */
 export function RoutePicker() {

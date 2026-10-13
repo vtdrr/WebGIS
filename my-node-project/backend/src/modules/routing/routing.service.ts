@@ -111,7 +111,7 @@ async function loadGraph(): Promise<{
     return graphCache;
   }
 
-  const result = await query<{
+  type GraphRow = {
     source_code: string;
     source_name: string;
     source_lng: number;
@@ -123,7 +123,29 @@ async function loadGraph(): Promise<{
     distance_m: number;
     path_name: string;
     geom: { type: string; coordinates: Array<[number, number]> };
-  }>(`
+  };
+
+  // Prefer the detailed OSM walking graph when one has been imported.
+  const osmResult = await query<GraphRow>(`
+    SELECT
+      e.from_node_id::text AS source_code,
+      'Giao lối đi bộ'::text AS source_name,
+      ST_X(n1.geom) AS source_lng,
+      ST_Y(n1.geom) AS source_lat,
+      e.to_node_id::text AS target_code,
+      'Giao lối đi bộ'::text AS target_name,
+      ST_X(n2.geom) AS target_lng,
+      ST_Y(n2.geom) AS target_lat,
+      e.distance_m,
+      e.name AS path_name,
+      ST_AsGeoJSON(e.geom)::jsonb AS geom
+    FROM campus_routing_edges e
+    JOIN campus_routing_nodes n1 ON n1.osm_node_id = e.from_node_id
+    JOIN campus_routing_nodes n2 ON n2.osm_node_id = e.to_node_id
+  `);
+
+  // Keep the original hand-entered graph as a compatibility fallback until OSM is imported.
+  const legacyResult = osmResult.rows.length > 0 ? null : await query<GraphRow>(`
     SELECT
       p1.code AS source_code,
       p1.name_vi AS source_name,
@@ -141,6 +163,7 @@ async function loadGraph(): Promise<{
     JOIN places p2 ON p2.code = cp.target_code
     WHERE p1.geom_point IS NOT NULL AND p2.geom_point IS NOT NULL
   `);
+  const rows = osmResult.rows.length > 0 ? osmResult.rows : (legacyResult?.rows ?? []);
 
   const nodes = new Map<string, GraphNode>();
   const adjacency = new Map<string, GraphEdge[]>();
@@ -152,7 +175,7 @@ async function loadGraph(): Promise<{
     }
   };
 
-  for (const row of result.rows) {
+  for (const row of rows) {
     ensureNode(row.source_code, row.source_name, row.source_lng, row.source_lat);
     ensureNode(row.target_code, row.target_name, row.target_lng, row.target_lat);
 

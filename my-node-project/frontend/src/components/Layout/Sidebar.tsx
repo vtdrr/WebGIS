@@ -46,6 +46,7 @@ export function Sidebar({ onPlaceSelect }: SidebarProps) {
           </div>
           {sidebarOpen && (
             <div className="sidebar__titles">
+              <span className="sidebar__eyebrow">{t('app.campus')}</span>
               <h1>{t('app.title')}</h1>
               <p>{t('app.subtitle')}</p>
             </div>
@@ -74,6 +75,14 @@ export function Sidebar({ onPlaceSelect }: SidebarProps) {
             <CategoryFilter />
           </div>
         </>
+      )}
+
+      {sidebarOpen && (
+        <div className="sidebar__list-head">
+          <span className="sidebar__list-title">{t('sidebar.places')}</span>
+          {placesMeta && <span className="sidebar__list-count">{placesMeta.total}</span>}
+          {placesMeta && <span className="sidebar__list-caption">{t('sidebar.showing', { shown: places.length, total: placesMeta.total })}</span>}
+        </div>
       )}
 
       <div className="sidebar__list" onScroll={handleScroll}>
@@ -122,11 +131,6 @@ export function Sidebar({ onPlaceSelect }: SidebarProps) {
         )}
       </div>
 
-      {sidebarOpen && placesMeta && (
-        <div className="sidebar__footer">
-          {t('sidebar.showing', { shown: places.length, total: placesMeta.total })}
-        </div>
-      )}
     </aside>
   );
 }

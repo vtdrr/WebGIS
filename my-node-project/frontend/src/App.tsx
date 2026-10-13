@@ -5,11 +5,8 @@
 import { useCallback, useEffect } from 'react';
 import {
   BaseMap,
-  PlacesLayer,
   BuildingsLayer,
-  UserLocation,
   RoutingLayer,
-  RouteEndpoints,
   RoutePicker,
   RouteFit,
 } from './components/Map';
@@ -72,16 +69,8 @@ function App() {
 
       <main className="app__map">
         <BaseMap>
-          <PlacesLayer
-            places={places}
-            categories={categories}
-            selectedPlaceId={selectedPlace?.id ?? null}
-            onPlaceClick={handlePlaceSelect}
-          />
-          <BuildingsLayer places={places} categories={categories} />
-          {position && <UserLocation position={position} />}
+          <BuildingsLayer places={places} categories={categories} onPlaceClick={handlePlaceSelect} />
           <RoutingLayer route={routingResult?.routes?.[0] ?? null} fallback={routingResult?.meta?.fallback} />
-          <RouteEndpoints />
           <RoutePicker />
           <RouteFit />
         </BaseMap>

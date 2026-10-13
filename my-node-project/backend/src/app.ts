@@ -9,6 +9,7 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import { mkdirSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { config } from './config/index.js';
 import { adminAuth } from './plugins/adminAuth.js';
 import { etag } from './plugins/etag.js';
@@ -159,7 +160,7 @@ function registerShutdown(app: FastifyInstance): void {
 }
 
 // Start server if run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   buildApp()
     .then((app) => {
       registerShutdown(app);

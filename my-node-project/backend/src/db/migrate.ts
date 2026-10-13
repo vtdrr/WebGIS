@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type pg from 'pg';
 import { pool } from './pool.js';
 
@@ -19,9 +19,14 @@ export interface MigrationResult {
 
 /** Versioned migration files: sql/migrations/NNNN_description.sql, applied in name order. */
 export function listMigrationFiles(dir = join(sqlDir, 'migrations')): string[] {
-  return readdirSync(dir)
-    .filter((f) => /^\d{4}_.+\.sql$/.test(f))
-    .sort();
+  try {
+    return readdirSync(dir)
+      .filter((f) => /^\d{4}_.+\.sql$/.test(f))
+      .sort();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
 }
 
 /**
@@ -98,7 +103,7 @@ async function applyFile(client: pg.PoolClient, path: string, version: string): 
 }
 
 // Run if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   runMigrations()
     .then(() => pool.end())
     .then(() => process.exit(0))

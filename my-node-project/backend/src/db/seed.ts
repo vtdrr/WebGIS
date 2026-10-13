@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { query } from './pool.js';
 
 async function seed(): Promise<void> {
@@ -35,7 +36,7 @@ async function seed(): Promise<void> {
   console.log('✅ Seed verification completed');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   seed()
     .then(() => process.exit(0))
     .catch((err) => {

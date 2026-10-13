@@ -19,6 +19,7 @@ export const vi = {
   'sidebar.emptyHint': 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm',
   'sidebar.allLoaded': 'Đã tải hết {total} địa điểm',
   'sidebar.showing': 'Hiển thị {shown} / {total} địa điểm',
+  'sidebar.places': 'Địa điểm trong trường',
 
   'search.placeholder': 'Tìm kiếm tòa nhà, phòng học, thư viện...',
   'search.clear': 'Xóa tìm kiếm',
@@ -184,6 +185,7 @@ export const en: Record<MessageKey, string> = {
   'sidebar.emptyHint': 'Try changing the filter or the search keywords',
   'sidebar.allLoaded': 'All {total} places loaded',
   'sidebar.showing': 'Showing {shown} / {total} places',
+  'sidebar.places': 'Campus places',
 
   'search.placeholder': 'Search buildings, classrooms, library...',
   'search.clear': 'Clear search',

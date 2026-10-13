@@ -27,7 +27,7 @@ Thumbs.db
 
 # Uploaded images
 my-node-project/backend/uploads/
-uploads/
+/uploads/
 
 # Playwright
 my-node-project/frontend/test-results/
