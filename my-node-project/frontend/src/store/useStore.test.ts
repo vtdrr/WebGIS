@@ -25,14 +25,6 @@ beforeEach(() => {
   useStore.setState({ lang: 'vi' });
 });
 
-describe('language', () => {
-  it('switches and persists the language', () => {
-    useStore.getState().setLang('en');
-    expect(useStore.getState().lang).toBe('en');
-    expect(localStorage.getItem('webgis.lang')).toBe('en');
-  });
-});
-
 describe('routing', () => {
   it('startRoutingTo with GPS fetches a route right away, in the right order (lat,lng)', async () => {
     api.getDirections.mockResolvedValue(route);
@@ -44,11 +36,10 @@ describe('routing', () => {
     expect(state.routePicking).toBe(false);
   });
 
-  it('names the GPS origin in the current language', async () => {
+  it('names the GPS origin in Vietnamese', async () => {
     api.getDirections.mockResolvedValue(route);
-    useStore.getState().setLang('en');
     await useStore.getState().startRoutingTo(makePlace(), { lat: 20.95, lng: 105.74 });
-    expect(useStore.getState().routingFrom?.name).toBe('My location');
+    expect(useStore.getState().routingFrom?.name).toBe('Vị trí của tôi');
   });
 
   it('without GPS it asks the user to pick the origin on the map', async () => {

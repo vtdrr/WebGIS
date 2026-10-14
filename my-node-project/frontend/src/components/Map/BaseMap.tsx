@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, useMap, LayersControl, ZoomControl } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, useMapEvents, LayersControl, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import './leafletSetup';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM, MAP_BOUNDS, MAP_MIN_ZOOM } from '../../types';
@@ -43,6 +43,7 @@ export function BaseMap({ children }: { children: React.ReactNode }) {
           />
         </LayersControl.BaseLayer>
       </LayersControl>
+      <BaseLayerModeSync satelliteLayerName={t('map.layerSatellite')} />
       <ZoomControl position="topleft" />
       {children}
       <MapGeometrySync />
@@ -51,6 +52,15 @@ export function BaseMap({ children }: { children: React.ReactNode }) {
       <MapResetController />
     </MapContainer>
   );
+}
+
+/** Keep feature styling in sync with the active Leaflet base layer. */
+function BaseLayerModeSync({ satelliteLayerName }: { satelliteLayerName: string }) {
+  const setSatelliteMode = useStore((state) => state.setSatelliteMode);
+  useMapEvents({
+    baselayerchange: (event) => setSatelliteMode(event.name === satelliteLayerName),
+  });
+  return null;
 }
 
 /** Re-sync Leaflet's vector renderer after a pan or a map-container resize. */

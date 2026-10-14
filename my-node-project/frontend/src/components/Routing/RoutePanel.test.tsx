@@ -116,12 +116,12 @@ describe('RoutePanel', () => {
     expect(actions.setRoutingMode).toHaveBeenCalledWith('wheelchair');
   });
 
-  it('shows loading and error states, and is translated in English', () => {
-    setup({ lang: 'en', routingLoading: true, routingError: 'Too far' });
+  it('shows loading and error states in Vietnamese', () => {
+    setup({ routingLoading: true, routingError: 'Quá xa' });
     render(<RoutePanel gpsPosition={null} />);
-    expect(screen.getByText('Calculating the route...')).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Too far');
-    expect(screen.getByText('Library')).toBeInTheDocument();
-    expect(screen.getByLabelText('Starting point')).toHaveTextContent('Canteen');
+    expect(screen.getByText('Đang tính tuyến đường...')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Quá xa');
+    expect(screen.getByText('Thư viện')).toBeInTheDocument();
+    expect(screen.getByLabelText('Điểm xuất phát')).toHaveTextContent('Căng tin');
   });
 });

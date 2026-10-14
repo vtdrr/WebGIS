@@ -51,13 +51,13 @@ describe('SearchBar', () => {
     expect(screen.getByText('Không tìm thấy kết quả cho "zzz"')).toBeInTheDocument();
   });
 
-  it('uses English names and texts in English mode', () => {
-    useStore.setState({ lang: 'en', searchResults: [makePlace({ name_vi: 'Thư viện', name_en: 'Library' })] });
+  it('always uses Vietnamese names and texts', () => {
+    useStore.setState({ searchResults: [makePlace({ name_vi: 'Thư viện', name_en: 'Library' })] });
     render(<SearchBar onSelect={() => undefined} />);
-    expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', 'Search buildings, classrooms, library...');
-    type('lib');
+    expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', 'Tìm kiếm tòa nhà, phòng học, thư viện...');
+    type('thư');
     act(() => void vi.advanceTimersByTime(300));
-    expect(screen.getByRole('option')).toHaveTextContent('Library');
+    expect(screen.getByRole('option')).toHaveTextContent('Thư viện');
   });
 
   it('clears the input and the search with the clear button', () => {

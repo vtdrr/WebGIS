@@ -41,19 +41,17 @@ describe('PlaceDetailPanel', () => {
     expect(within(dialog).getByAltText('Mặt tiền')).toHaveAttribute('src', '/uploads/a.png');
   });
 
-  it('is fully translated in English', () => {
-    useStore.setState({ lang: 'en' });
+  it('always displays Vietnamese content even when English fields exist', () => {
     render(<PlaceDetailPanel place={full()} onClose={() => undefined} />);
-    expect(screen.getByRole('dialog', { name: 'Building A1' })).toBeInTheDocument();
-    expect(screen.getByText('English description')).toBeInTheDocument();
-    expect(screen.getByText('Mon - Fri')).toBeInTheDocument();
-    expect(screen.getByText('Closed')).toBeInTheDocument();
-    expect(screen.getByText('120 people')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Directions/ })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Tòa A1' })).toBeInTheDocument();
+    expect(screen.getByText('Mô tả tiếng Việt')).toBeInTheDocument();
+    expect(screen.getByText('Thứ 2 - Thứ 6')).toBeInTheDocument();
+    expect(screen.getByText('Đóng cửa')).toBeInTheDocument();
+    expect(screen.getByText('120 người')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Chỉ đường/ })).toBeInTheDocument();
   });
 
-  it('falls back to Vietnamese text when the English field is empty', () => {
-    useStore.setState({ lang: 'en' });
+  it('uses Vietnamese description', () => {
     render(<PlaceDetailPanel place={makePlace({ description_en: null })} onClose={() => undefined} />);
     expect(screen.getByText('Mô tả tiếng Việt')).toBeInTheDocument();
   });

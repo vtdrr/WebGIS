@@ -16,9 +16,7 @@ export interface PlaceFormState {
   code: string;
   category_id: string;
   name_vi: string;
-  name_en: string;
   description_vi: string;
-  description_en: string;
   floor: string;
   contact_phone: string;
   contact_email: string;
@@ -37,7 +35,7 @@ export interface PlaceFormState {
 
 export function emptyForm(): PlaceFormState {
   return {
-    code: '', category_id: '', name_vi: '', name_en: '', description_vi: '', description_en: '',
+    code: '', category_id: '', name_vi: '', description_vi: '',
     floor: '', contact_phone: '', contact_email: '', lat: '', lng: '', polygon: [],
     hours: [], amenities: {}, capacity: '', images: [], extraAttributes: {},
   };
@@ -72,9 +70,7 @@ export function placeToForm(place: Place): PlaceFormState {
     code: place.code ?? '',
     category_id: place.category_id ? String(place.category_id) : '',
     name_vi: place.name_vi,
-    name_en: place.name_en ?? '',
     description_vi: place.description_vi ?? '',
-    description_en: place.description_en ?? '',
     floor: place.floor !== null && place.floor !== undefined ? String(place.floor) : '',
     contact_phone: place.contact_phone ?? '',
     contact_email: place.contact_email ?? '',
@@ -136,9 +132,7 @@ export function formToPayload(f: PlaceFormState, mode: 'create' | 'update'): Pla
     category_id: Number(f.category_id),
     name_vi: f.name_vi.trim(),
     code: text(f.code),
-    name_en: text(f.name_en),
     description_vi: text(f.description_vi),
-    description_en: text(f.description_en),
     contact_phone: text(f.contact_phone),
     contact_email: text(f.contact_email),
     floor: f.floor.trim() !== '' ? Number(f.floor) : update ? null : undefined,

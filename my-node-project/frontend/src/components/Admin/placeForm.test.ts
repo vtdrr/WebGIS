@@ -23,7 +23,7 @@ describe('placeToForm', () => {
 
   it('handles a bare place (nulls)', () => {
     const form = placeToForm(makePlace({ code: null, name_en: null, geom_point: null, floor: null, images: undefined as never }));
-    expect(form).toMatchObject({ code: '', name_en: '', lat: '', lng: '', floor: '', images: [] });
+    expect(form).toMatchObject({ code: '', lat: '', lng: '', floor: '', images: [] });
   });
 });
 
@@ -40,7 +40,7 @@ describe('formToPayload', () => {
   it('update: sends nulls so cleared fields are removed', () => {
     const payload = formToPayload(base(), 'update');
     expect(payload).toMatchObject({
-      code: null, name_en: null, description_vi: null, contact_email: null, floor: null, opening_hours: null, geom_polygon: null,
+      code: null, description_vi: null, contact_email: null, floor: null, opening_hours: null, geom_polygon: null,
     });
   });
 

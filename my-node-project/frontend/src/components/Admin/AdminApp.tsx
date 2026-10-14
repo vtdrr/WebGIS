@@ -3,7 +3,6 @@ import { categoriesApi, placesApi, ApiError } from '../../services/api';
 import { adminApi, adminKey } from '../../services/adminApi';
 import { useStore } from '../../store/useStore';
 import { useT } from '../../i18n/useT';
-import { LanguageSwitch } from '../UI/LanguageSwitch';
 import { PlaceEditor } from './PlaceEditor';
 import { emptyForm, formToPayload, placeToForm, type PlaceFormState } from './placeForm';
 import type { Category, Place } from '../../types';
@@ -159,7 +158,6 @@ export default function AdminApp() {
       <header className="admin__header">
         <h1>{t('admin.title')}</h1>
         <div className="admin__header-actions">
-          <LanguageSwitch />
           <a className="btn btn--small" href="#/">{t('admin.back')}</a>
           <button type="button" className="btn btn--small" onClick={logout}>{t('admin.logout')}</button>
         </div>

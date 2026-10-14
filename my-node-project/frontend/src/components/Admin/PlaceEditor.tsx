@@ -72,9 +72,6 @@ export function PlaceEditor({ form, categories, adminKey, saving, onChange, onSu
         <Field label={t('admin.form.nameVi')}>
           <input value={form.name_vi} onChange={(e) => set('name_vi', e.target.value)} required />
         </Field>
-        <Field label={t('admin.form.nameEn')}>
-          <input value={form.name_en} onChange={(e) => set('name_en', e.target.value)} />
-        </Field>
         <Field label={t('admin.form.code')}>
           <input value={form.code} maxLength={50} onChange={(e) => set('code', e.target.value)} />
         </Field>
@@ -102,9 +99,6 @@ export function PlaceEditor({ form, categories, adminKey, saving, onChange, onSu
         </Field>
         <Field label={t('admin.form.descVi')} wide>
           <textarea rows={3} value={form.description_vi} onChange={(e) => set('description_vi', e.target.value)} />
-        </Field>
-        <Field label={t('admin.form.descEn')} wide>
-          <textarea rows={3} value={form.description_en} onChange={(e) => set('description_en', e.target.value)} />
         </Field>
       </div>
 

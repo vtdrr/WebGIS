@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { Category, Place, PlaceQueryParams, MapState, RoutingResponse, RoutingParams } from '../types';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM } from '../types';
-import { detectLang, saveLang, translate, type Lang } from '../i18n';
+import { detectLang, translate, type Lang } from '../i18n';
 import { categoriesApi, placesApi, routingApi } from '../services/api';
 
 /** Narrow screens start with the place list closed so the map is visible. */
@@ -25,7 +25,6 @@ export interface RoutePoint {
 interface AppState {
   // Language
   lang: Lang;
-  setLang: (lang: Lang) => void;
 
   // Categories
   categories: Category[];
@@ -63,6 +62,8 @@ interface AppState {
 
   // Map
   mapState: MapState;
+  satelliteMode: boolean;
+  setSatelliteMode: (enabled: boolean) => void;
   setMapCenter: (center: [number, number]) => void;
   setMapZoom: (zoom: number) => void;
   setMapBounds: (bounds: [[number, number], [number, number]] | null) => void;
@@ -112,10 +113,6 @@ export const useStore = create<AppState>()(
   subscribeWithSelector((set, get) => ({
     // Language
     lang: detectLang(),
-    setLang: (lang) => {
-      saveLang(lang);
-      set({ lang });
-    },
 
     // Categories
     categories: [],
@@ -224,6 +221,8 @@ export const useStore = create<AppState>()(
       zoom: PHENIKAA_ZOOM,
       bounds: null,
     },
+    satelliteMode: false,
+    setSatelliteMode: (satelliteMode) => set({ satelliteMode }),
     setMapCenter: (center) => set((state) => ({ mapState: { ...state.mapState, center } })),
     setMapZoom: (zoom) => set((state) => ({ mapState: { ...state.mapState, zoom } })),
     setMapBounds: (bounds) => set((state) => ({ mapState: { ...state.mapState, bounds } })),

@@ -391,3 +391,8 @@ button { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+.satellite-place-marker {
+  background: transparent;
+  border: 0;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.48));
+}

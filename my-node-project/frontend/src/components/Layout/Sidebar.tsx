@@ -2,7 +2,7 @@ import React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { useT } from '../../i18n/useT';
-import { CategoryFilter, Icon, LanguageSwitch, PlaceCard, SearchBar } from '../UI';
+import { CategoryFilter, Icon, PlaceCard, SearchBar } from '../UI';
 import type { Place } from '../../types';
 
 interface SidebarProps {
@@ -53,7 +53,6 @@ export function Sidebar({ onPlaceSelect }: SidebarProps) {
           )}
         </div>
         <div className="sidebar__actions">
-          {sidebarOpen && <LanguageSwitch />}
           <button
             type="button"
             className="icon-button"

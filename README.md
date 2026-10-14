@@ -1,6 +1,8 @@
 # WebGIS — Bản đồ số khuôn viên Trường Đại học Phenikaa
 
-Ứng dụng WebGIS phục vụ việc quản lý và tra cứu thông tin các địa điểm trong khuôn viên trường, bao gồm các tòa nhà, giảng đường, phòng học, phòng thí nghiệm, thư viện, ký túc xá, bãi đỗ xe, căng tin, sân thể thao và các khu vực chức năng khác.
+Ứng dụng WebGIS để tra cứu, quản lý và chỉ đường tới các địa điểm trong khuôn viên Trường Đại học Phenikaa. Hệ thống gồm giao diện React/Leaflet, API Fastify và cơ sở dữ liệu PostgreSQL/PostGIS.
+
+**Chức năng chính:** tìm kiếm có gợi ý bàn phím, lọc danh mục, xem footprint OSM, chọn địa điểm, định vị và chỉ đường trên mạng đi bộ OSM; giao diện quản trị hỗ trợ CRUD địa điểm và tải ảnh.
 
 ## 🏗️ Kiến trúc
 
@@ -8,54 +10,63 @@
 my-node-project/
 ├── backend/                  # API server (Fastify + TypeScript + PostgreSQL/PostGIS)
 │   ├── src/
-│   │   ├── modules/
-│   │   │   ├── categories/   # CRUD danh mục địa điểm
-│   │   │   ├── places/       # CRUD + tìm kiếm + nearby + GeoJSON
-│   │   │   ├── routing/      # Chỉ đường Dijkstra trên mạng đi bộ OSM
-│   │   │   └── common/       # Zod schemas & types
-│   │   ├── db/               # Connection pool, migrate, seed
-│   │   ├── config/           # Env validation (zod)
-│   │   └── app.ts            # Fastify app, Swagger/OpenAPI
-│   └── sql/init.sql          # Schema + seed data (chạy tự động khi khởi tạo DB)
+│   │   ├── modules/           # categories, places, routing, uploads
+│   │   ├── db/                # pool, migrations, seed verification, OSM importers
+│   │   ├── config/            # Environment validation (Zod)
+│   │   └── app.ts             # Fastify app, Swagger/OpenAPI
+│   ├── sql/init.sql           # Baseline schema + initial categories/sample records
+│   ├── sql/migrations/        # Versioned database migrations
+│   └── tests/                 # Backend integration and unit tests
 ├── frontend/                 # Web app (React 18 + Vite + TypeScript + Leaflet)
 │   └── src/
-│       ├── components/Map/   # BaseMap, BuildingsLayer, RoutingLayer, route picking/fit
-│       ├── components/UI/    # SearchBar, CategoryFilter, PlaceCard, PlaceDetailPanel
-│       ├── hooks/            # useGeolocation, createMarkerIcon, useMapSync...
-│       ├── services/api.ts   # API client
-│       └── store/useStore.ts # Zustand state management
+│       ├── components/Map/    # Basemap, footprints, point selection, routing
+│       ├── components/Admin/  # Admin UI and geometry editor
+│       ├── components/UI/     # Search, category filter, cards and details
+│       ├── services/          # Public and admin API clients
+│       └── store/useStore.ts  # Zustand state management
 └── docker-compose.yml        # PostgreSQL 16 + PostGIS 3.4 + pgAdmin 4
 ```
 
 ## 🚀 Cài đặt & chạy
 
-**Yêu cầu:** Node.js >= 20, Docker & Docker Compose
+**Yêu cầu:** Node.js >= 20, npm, Docker Desktop và Docker Compose. Các lệnh bên dưới giả định bạn đang dùng PowerShell và bắt đầu tại thư mục gốc repo (`WebGIS`).
 
-```bash
+### 1. Khởi động database
+
+```powershell
 cd my-node-project
-
-# 1. Khởi động database (PostGIS) — tự động tạo schema + seed
 docker compose up -d db
+```
 
-# 2. Terminal 1 — backend
+Compose sẽ khởi tạo schema lần đầu khi volume database còn trống. Mở **Terminal 1 mới** tại thư mục gốc repo để chạy backend:
+
+```powershell
 cd my-node-project/backend
 npm install
-cp .env.example .env      # Windows: copy .env.example .env
-npm run db:migrate        # đồng bộ schema (idempotent)
-npm run db:seed           # kiểm tra dữ liệu mẫu
-npm run db:import-osm-paths # tải mạng đường đi bộ OSM quanh Phenikaa
-npm run db:import-osm-places # đồng bộ các địa điểm OSM trong phạm vi khuôn viên
-npm run dev               # dev mode (tsx watch) — http://localhost:3000
+copy .env.example .env
+npm run db:migrate
+npm run db:seed                 # kiểm tra dữ liệu hiện có; không xóa/tạo lại database
+npm run db:import-osm-paths     # cần internet tới Overpass
+npm run db:import-osm-places    # cần internet tới Overpass
+npm run dev
 # hoặc: npm run build && npm start
+```
 
-# 3. Terminal 2 — mở terminal mới, giữ backend chạy ở Terminal 1
+Chỉ cần sao chép `.env.example` thành `.env` một lần. Hai lệnh import OSM có thể chạy lại để đồng bộ dữ liệu.
+
+Mở **Terminal 2 mới** tại thư mục gốc repo để chạy frontend. Vite proxy `/api` tới backend ở cổng 3000:
+
+```powershell
 cd my-node-project/frontend
 npm install
 npm run dev               # http://localhost:5173 (proxy /api -> :3000)
 ```
 
-**pgAdmin:** http://localhost:5050 (admin@phenikaa.edu.vn / admin)
+Muốn dùng pgAdmin, chạy `docker compose up -d db pgadmin` từ `my-node-project`. Sau đó mở http://localhost:5050 (tài khoản mặc định cho môi trường local: `admin@phenikaa.edu.vn` / `admin`).
+
 **Swagger API docs:** http://localhost:3000/docs
+
+**Admin UI:** http://localhost:5173/#/admin. Khi đã đặt `ADMIN_API_KEY` trong `backend/.env`, đăng nhập bằng key đó. Không dùng key mặc định hoặc để API ghi mở trên môi trường production.
 
 ## 🔐 Bảo mật API
 
@@ -73,6 +84,7 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 | Method | Endpoint | Mô tả |
 |---|---|---|
 | GET | `/health` | Health check |
+| GET | `/health/ready` | Kiểm tra trạng thái sẵn sàng, gồm kết nối database |
 | GET | `/api/categories` | Danh sách danh mục (active) |
 | GET | `/api/categories/with-counts` | Danh mục + số lượng địa điểm |
 | GET | `/api/places` | Danh sách địa điểm (phân trang, lọc category/q/bbox/floor/has_polygon, sort) |
@@ -83,15 +95,19 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 | POST | `/api/places` | Tạo địa điểm (admin) |
 | PATCH | `/api/places/:id` | Cập nhật địa điểm (admin) |
 | DELETE | `/api/places/:id` | Xóa địa điểm (admin) |
+| POST | `/api/uploads` | Tải ảnh PNG/JPEG/WebP lên (admin) |
+| POST | `/api/auth/verify` | Xác thực admin API key |
 | GET | `/api/routing?from=lat,lng&to=lat,lng&mode=walk\|bike\|wheelchair` | Tuyến đường đi bộ/xe đạp/xe lăn |
 
-Routing ưu tiên mạng đi bộ OSM trong `campus_routing_nodes` / `campus_routing_edges`, chạy Dijkstra trên hình học đường thật. Chạy `npm run db:import-osm-paths` để lấy dữ liệu quanh trường (bbox mặc định: `20.956,105.742,20.970,105.756`); có thể đổi bằng `--bbox=south,west,north,east`. Lệnh này cần kết nối internet tới Overpass API và thay thế dữ liệu trong hai bảng mạng OSM, không đụng tới địa điểm hay `campus_paths`. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
+Routing ưu tiên mạng đi bộ OSM trong `campus_routing_nodes` / `campus_routing_edges`, chạy Dijkstra trên hình học đường thật. Chạy `npm run db:import-osm-paths` để lấy dữ liệu quanh trường (bbox mặc định: `20.956,105.742,20.970,105.756`); có thể đổi bằng `npm run db:import-osm-paths -- --bbox=south,west,north,east`. Lệnh này cần internet tới Overpass API và thay thế dữ liệu trong hai bảng mạng OSM, không đụng tới địa điểm hay `campus_paths`. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
 
-`npm run db:import-osm-places` đồng bộ các feature đã xác nhận từ Overpass (`20.958,105.744,20.966,105.753`), thay record mẫu OSM, giữ địa điểm admin và upsert các điểm bổ sung do người dùng cung cấp. Danh sách gồm A1–A8 (giảng đường 7 tầng), A9–A10 (tòa nhà chính), B1–B4 (thực hành kỹ thuật), 3 ký túc xá, 2 căng tin, sân bóng, nhà thi đấu, y tế học đường, thư viện A10 (tầng 4–6), 2 cổng, sân tennis và 4 bãi giữ xe. Các danh mục “Phòng ban hành chính” và “Khác” bị ẩn; quảng trường bị loại. Điểm nhập thủ công được đồng bộ lặp lại theo code ổn định và không bị xóa khi cập nhật OSM. OSM node/way vẫn được nhận diện bằng ID; không tự đặt tên cho đối tượng OSM thiếu tên. Bản đồ dùng tile nền OSM và polygon feature, không chồng icon marker POI.
+`npm run db:import-osm-places` đồng bộ các feature được duyệt từ Overpass trong bbox `20.958,105.744,20.966,105.753`, thay các record OSM/sample thuộc bộ đồng bộ và giữ địa điểm admin thủ công. Danh sách OSM gồm A1–A8 (giảng đường 7 tầng), A9–A10 (tòa nhà chính), B1–B4 (thực hành kỹ thuật), 3 ký túc xá, 2 căng tin, sân bóng, nhà thi đấu và y tế học đường. Thư viện A10 (tầng 4–6), 2 cổng, sân tennis và 4 bãi giữ xe được nhập bằng tọa độ đã cung cấp; chúng được upsert theo code và không bị xóa khi đồng bộ OSM. Danh mục “Phòng ban hành chính” và “Khác” bị ẩn; quảng trường bị loại. OSM feature được định danh bằng node/way ID và giữ tên OSM; không tự đặt tên cho đối tượng OSM thiếu tên. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
+
+Footprint có polygon hiển thị viền nét đứt. Địa điểm không có polygon chỉ hiện chấm đỏ khi được chọn; không có icon marker POI thường trực.
 
 Điểm đi/đến ngoài mạng được nối tới nút gần nhất bằng đoạn thẳng; `off_network: true` và `meta.off_network_m` thể hiện phần này, giao diện vẽ nét chấm cam. Điểm cách mạng đường quá 3 km trả HTTP 422. `campus_paths` vẫn được giữ làm graph cũ nếu chưa nạp OSM; đường chim bay (`meta.fallback = true`) chỉ dùng khi không có tuyến nối được.
 
-Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật chế độ bấm lên bản đồ để chọn vị trí hiện tại; cũng có thể chọn điểm xuất phát từ danh sách. Không vẽ marker cho POI, vị trí GPS hay điểm đầu/cuối; tuyến đường và vòng chọn điểm vẫn hoạt động.
+Trên giao diện, nếu không có GPS, bấm “Chỉ đường” để bật chế độ chọn điểm xuất phát bằng click bản đồ; cũng có thể chọn điểm xuất phát từ danh sách. Tuyến đường vẫn hiển thị khi không có marker ở hai đầu.
 
 ## 🗺️ Dữ liệu không gian
 
@@ -99,7 +115,7 @@ Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật ch�
 - Giới hạn kéo bản đồ: khu vực Hà Nội `[[20.85, 105.6], [21.15, 106.0]]`, zoom tối thiểu 11 (`MAP_BOUNDS`, `MAP_MIN_ZOOM` trong `frontend/src/types/index.ts`)
 - Street Map: `tile.openstreetmap.de` (OSM community server, OSM-derived) — attribution "© OpenStreetMap contributors"
 - Satellite: Esri World Imagery — attribution "Imagery © Esri, Maxar, Earthstar Geographics", `maxNativeZoom: 19` (Esri không có imagery z20 tại khu vực này)
-- `places.geom_point` — điểm đại diện để tìm kiếm, định tuyến và đưa bản đồ tới vị trí; POI không vẽ marker
+- `places.geom_point` — điểm đại diện để tìm kiếm, định tuyến và đưa bản đồ tới vị trí; địa điểm không có polygon chỉ hiện chấm đỏ khi được chọn
 - `places.geom_polygon` — footprint tòa nhà/vùng đất
 - `places.source`, `places.osm_type`, `places.osm_id` — nguồn dữ liệu và OSM identity để cập nhật an toàn
 - `places.search_tsv` — tsvector (generated, config `simple`, qua `f_unaccent`) có trọng số: tên (A) > mã + tên tiếng Anh (B) > mô tả (C)
@@ -111,28 +127,31 @@ Trên giao diện, nếu không có GPS, bấm "Chỉ đường" sẽ bật ch�
 
 - [x] Backend API: categories, places (CRUD, filter, search, nearby, GeoJSON), routing
 - [x] Database: PostGIS schema, migrations, seed, docker-compose
-- [x] Frontend: bản đồ Leaflet, tìm kiếm, lọc danh mục, chỉ đường và geolocation (không vẽ POI markers)
+- [x] Frontend: bản đồ Leaflet, tìm kiếm/gợi ý, lọc danh mục, chọn địa điểm, chỉ đường và geolocation
 - [x] Routing Dijkstra trên mạng lối đi OSM (có thể cập nhật bằng `db:import-osm-paths`)
+- [x] Admin UI tại `/#/admin`: CRUD địa điểm, chỉnh hình học và tải ảnh
 - [x] Swagger/OpenAPI documentation tại `/docs`
-- [ ] (Phase 5) Tích hợp OSRM/pgRouting cho routing trên đường thật
-- [ ] (Phase 5) Admin panel quản lý địa điểm (upload hình ảnh, vẽ polygon)
-- [ ] (Phase 5) Import dữ liệu thật từ phòng đào tạo
+- [ ] Đồng bộ dữ liệu chính thức chi tiết hơn từ các đơn vị trong trường
 
 ## 🔧 Scripts
 
-**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` | `npm run db:import-osm-paths` | `npm run db:import-osm-places` | `npm run db:reset` | `npm run lint` | `npm run typecheck` | `npm test`
+**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` (verify) | `npm run db:import-osm-paths` | `npm run db:import-osm-places` | `npm run db:import-places` | `npm run lint` | `npm run typecheck` | `npm test`
 
-**Frontend:** `npm run dev` | `npm run build` | `npm run preview` | `npm run lint`
+**Frontend:** `npm run dev` | `npm run build` | `npm run preview` | `npm run lint` | `npm test` | `npm run e2e`
+
+`db:seed` chỉ in báo cáo/kiểm tra dữ liệu hiện có; không tạo seed mới. Script `db:reset` hiện chỉ chạy migrate và kiểm tra dữ liệu, không xóa hoặc tạo lại database.
 
 ## 🧪 Kiểm thử
 
-Backend dùng [Vitest](https://vitest.dev). Test tích hợp chạy trên một database riêng `phenikaa_gis_test` (tự tạo lại từ `sql/init.sql` mỗi lần chạy, không đụng đến database phát triển).
+Backend dùng [Vitest](https://vitest.dev). Test cần PostgreSQL/PostGIS đang chạy và quyền tạo/xóa database; trước mỗi lượt chạy, test **drop và tạo lại** database riêng có tên chứa `test` (mặc định `phenikaa_gis_test`), sau đó nạp `sql/init.sql`. Không trỏ `TEST_DATABASE_URL` tới database phát triển vì database test sẽ bị xóa. Nếu chưa cài dependencies, chạy `npm install` trong `my-node-project/backend` trước.
 
-```bash
+```powershell
+# Từ thư mục gốc repo
+cd my-node-project
 docker compose up -d db     # cần PostgreSQL/PostGIS đang chạy
 cd backend
 npm test                    # chạy toàn bộ
 npm run test:watch          # chạy lại khi sửa code
 ```
 
-Mặc định kết nối `postgres://postgres:postgres@localhost:5432/phenikaa_gis_test`; đổi bằng biến môi trường `TEST_DATABASE_URL` (tên database phải chứa chữ "test"). CI (GitHub Actions) chạy typecheck, lint, build và test cho cả backend và frontend.
+Mặc định test kết nối `postgres://postgres:postgres@localhost:5432/phenikaa_gis_test`; có thể đổi bằng biến môi trường `TEST_DATABASE_URL` (tên database phải chứa chữ `test`). CI (GitHub Actions) chạy typecheck, lint, build và test cho cả backend và frontend.

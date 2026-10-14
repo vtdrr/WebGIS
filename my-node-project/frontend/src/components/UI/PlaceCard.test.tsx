@@ -34,12 +34,11 @@ describe('PlaceCard', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('switches to English names', () => {
-    useStore.setState({ lang: 'en' });
+  it('uses Vietnamese names even when English place fields exist', () => {
     render(<PlaceCard place={makePlace({ floor: 2 })} onClick={() => undefined} />);
-    expect(screen.getByRole('heading', { name: 'Building A1' })).toBeInTheDocument();
-    expect(screen.getByText('Main Building')).toBeInTheDocument();
-    expect(screen.getByText('Floor 2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tòa A1' })).toBeInTheDocument();
+    expect(screen.getByText('Tòa nhà chính')).toBeInTheDocument();
+    expect(screen.getByText('Tầng 2')).toBeInTheDocument();
   });
 });
 
