@@ -36,7 +36,6 @@ const result = (over: Partial<RoutingResponse['meta']> = {}): RoutingResponse =>
 
 function setup(state: Parameters<typeof useStore.setState>[0] = {}) {
   const actions = {
-    setRoutingMode: vi.fn(),
     setRoutingOrigin: vi.fn(),
     setRoutePicking: vi.fn(),
     swapRouting: vi.fn(),
@@ -61,8 +60,9 @@ describe('RoutePanel', () => {
     expect(select).toHaveTextContent('Căng tin');
     expect(select).not.toHaveTextContent('Thư viện');
     expect(screen.getByText('Vị trí của tôi (chưa có GPS)')).toBeInTheDocument();
-    // modes are disabled until both ends exist
-    expect(screen.getByRole('button', { name: /Đi bộ/ })).toBeDisabled();
+    expect(screen.getByText('Đi bộ')).toBeInTheDocument();
+    expect(screen.queryByText('Xe đạp')).not.toBeInTheDocument();
+    expect(screen.queryByText('Xe lăn')).not.toBeInTheDocument();
   });
 
   it('picking a place or GPS as origin goes through the store', () => {
@@ -107,13 +107,6 @@ describe('RoutePanel', () => {
     expect(screen.queryByText(/Gồm khoảng/)).not.toBeInTheDocument();
     // a map-picked origin cannot be swapped
     expect(screen.getByRole('button', { name: 'Đổi điểm đi và điểm đến' })).toBeDisabled();
-  });
-
-  it('switches the mode', () => {
-    const actions = setup({ routingFrom: { lat: 1, lng: 2, name: 'x', source: 'gps' }, routingResult: result() });
-    render(<RoutePanel gpsPosition={{ lat: 1, lng: 2 }} />);
-    fireEvent.click(screen.getByRole('button', { name: /Xe lăn/ }));
-    expect(actions.setRoutingMode).toHaveBeenCalledWith('wheelchair');
   });
 
   it('shows loading and error states in Vietnamese', () => {

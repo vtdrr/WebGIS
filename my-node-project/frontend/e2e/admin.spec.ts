@@ -20,7 +20,6 @@ test('admin can create, edit and delete a place', async ({ page }) => {
 
   // create
   await page.getByLabel('Tên (tiếng Việt) *').fill('Phòng thử nghiệm E2E');
-  await page.getByLabel('Tên (English)').fill('E2E test room');
   await page.getByLabel('Mã', { exact: true }).fill(code);
   await page.getByLabel('Danh mục *').selectOption({ label: 'Phòng học/Giảng đường' });
   await page.getByLabel('Vĩ độ').fill('20.9626');

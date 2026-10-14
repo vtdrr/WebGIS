@@ -89,7 +89,7 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 | GET | `/api/categories/with-counts` | Danh mục + số lượng địa điểm |
 | GET | `/api/places` | Danh sách địa điểm (phân trang, lọc category/q/bbox/floor/has_polygon, sort) |
 | GET | `/api/places/geojson` | Export GeoJSON FeatureCollection |
-| GET | `/api/places/search?q=&limit=&category=` | Tìm kiếm có xếp hạng: không phân biệt dấu/hoa thường, khớp tiền tố ("thu vi" → Thư viện), tìm theo tên, mã, tên tiếng Anh, mô tả, chịu lỗi gõ (pg_trgm) |
+| GET | `/api/places/search?q=&limit=&category=` | Tìm kiếm giao diện tiếng Việt có xếp hạng: không phân biệt dấu/hoa thường, khớp tiền tố ("thu vi" → Thư viện), tìm theo tên, mã và mô tả, chịu lỗi gõ (pg_trgm) |
 | GET | `/api/places/nearby?lat=&lng=&radius=` | Địa điểm gần một tọa độ (PostGIS geography) |
 | GET | `/api/places/:id` | Chi tiết địa điểm |
 | POST | `/api/places` | Tạo địa điểm (admin) |
@@ -97,13 +97,13 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 | DELETE | `/api/places/:id` | Xóa địa điểm (admin) |
 | POST | `/api/uploads` | Tải ảnh PNG/JPEG/WebP lên (admin) |
 | POST | `/api/auth/verify` | Xác thực admin API key |
-| GET | `/api/routing?from=lat,lng&to=lat,lng&mode=walk\|bike\|wheelchair` | Tuyến đường đi bộ/xe đạp/xe lăn |
+| GET | `/api/routing?from=lat,lng&to=lat,lng` | Tuyến đường đi bộ |
 
-Routing ưu tiên mạng đi bộ OSM trong `campus_routing_nodes` / `campus_routing_edges`, chạy Dijkstra trên hình học đường thật. Chạy `npm run db:import-osm-paths` để lấy dữ liệu quanh trường (bbox mặc định: `20.956,105.742,20.970,105.756`); có thể đổi bằng `npm run db:import-osm-paths -- --bbox=south,west,north,east`. Lệnh này cần internet tới Overpass API và thay thế dữ liệu trong hai bảng mạng OSM, không đụng tới địa điểm hay `campus_paths`. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
+Routing chỉ hỗ trợ người đi bộ (đường đi); các tham số `bike` và `wheelchair` không còn được chấp nhận vì dữ liệu mạng chưa có thuộc tính phù hợp để bảo đảm an toàn/khả năng tiếp cận. Hệ thống ưu tiên mạng đi bộ OSM trong `campus_routing_nodes` / `campus_routing_edges`, chạy Dijkstra trên hình học đường thật. Chạy `npm run db:import-osm-paths` để lấy dữ liệu quanh trường (bbox mặc định: `20.956,105.742,20.970,105.756`); có thể đổi bằng `npm run db:import-osm-paths -- --bbox=south,west,north,east`. Lệnh này cần internet tới Overpass API và thay thế dữ liệu trong hai bảng mạng OSM, không đụng tới địa điểm hay `campus_paths`. Tuyến vẫn có thể chứa đoạn nối thẳng ngoài mạng đã nhập hoặc fallback đường chim bay khi chưa có tuyến kết nối; cần đối chiếu thực địa trước khi dùng như chỉ dẫn chính xác. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
 
 `npm run db:import-osm-places` đồng bộ các feature được duyệt từ Overpass trong bbox `20.958,105.744,20.966,105.753`, thay các record OSM/sample thuộc bộ đồng bộ và giữ địa điểm admin thủ công. Danh sách OSM gồm A1–A8 (giảng đường 7 tầng), A9–A10 (tòa nhà chính), B1–B4 (thực hành kỹ thuật), 3 ký túc xá, 2 căng tin, sân bóng, nhà thi đấu và y tế học đường. Thư viện A10 (tầng 4–6), 2 cổng, sân tennis và 4 bãi giữ xe được nhập bằng tọa độ đã cung cấp; chúng được upsert theo code và không bị xóa khi đồng bộ OSM. Danh mục “Phòng ban hành chính” và “Khác” bị ẩn; quảng trường bị loại. OSM feature được định danh bằng node/way ID và giữ tên OSM; không tự đặt tên cho đối tượng OSM thiếu tên. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
 
-Footprint có polygon hiển thị viền nét đứt. Địa điểm không có polygon chỉ hiện chấm đỏ khi được chọn; không có icon marker POI thường trực.
+Giao diện chỉ hỗ trợ tiếng Việt. Footprint có polygon hiển thị viền nét đứt ở lớp bản đồ; ở lớp vệ tinh địa điểm được thể hiện bằng marker, địa điểm đang chọn được nhấn mạnh.
 
 Điểm đi/đến ngoài mạng được nối tới nút gần nhất bằng đoạn thẳng; `off_network: true` và `meta.off_network_m` thể hiện phần này, giao diện vẽ nét chấm cam. Điểm cách mạng đường quá 3 km trả HTTP 422. `campus_paths` vẫn được giữ làm graph cũ nếu chưa nạp OSM; đường chim bay (`meta.fallback = true`) chỉ dùng khi không có tuyến nối được.
 
@@ -143,7 +143,7 @@ Trên giao diện, nếu không có GPS, bấm “Chỉ đường” để bật
 
 ## 🧪 Kiểm thử
 
-Backend dùng [Vitest](https://vitest.dev). Test cần PostgreSQL/PostGIS đang chạy và quyền tạo/xóa database; trước mỗi lượt chạy, test **drop và tạo lại** database riêng có tên chứa `test` (mặc định `phenikaa_gis_test`), sau đó nạp `sql/init.sql`. Không trỏ `TEST_DATABASE_URL` tới database phát triển vì database test sẽ bị xóa. Nếu chưa cài dependencies, chạy `npm install` trong `my-node-project/backend` trước.
+Backend dùng [Vitest](https://vitest.dev). Test cần PostgreSQL/PostGIS đang chạy và quyền tạo/xóa database; trước mỗi lượt chạy, test **drop và tạo lại** database riêng có tên chứa `test` (mặc định `phenikaa_gis_test`), sau đó nạp `sql/init.sql`. Không trỏ `TEST_DATABASE_URL` tới database phát triển vì database test sẽ bị xóa. Frontend cũng dùng Vitest để chạy unit/component tests. Nếu chưa cài dependencies, chạy `npm install` trong thư mục backend hoặc frontend tương ứng.
 
 ```powershell
 # Từ thư mục gốc repo

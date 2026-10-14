@@ -60,18 +60,10 @@ describe('routing', () => {
     expect(useStore.getState().routingResult).toEqual(route);
   });
 
-  it('changing the mode re-fetches with that mode', async () => {
-    api.getDirections.mockResolvedValue(route);
-    await useStore.getState().startRoutingTo(makePlace(), { lat: 20.95, lng: 105.74 });
-    useStore.getState().setRoutingMode('wheelchair');
-    await vi.waitFor(() => expect(api.getDirections).toHaveBeenCalledTimes(2));
-    expect(api.getDirections).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'wheelchair' }));
-  });
-
   it('keeps the server message when routing fails and clears the stale route', async () => {
     api.getDirections.mockResolvedValueOnce(route).mockRejectedValueOnce(new Error('Điểm đến quá xa'));
     await useStore.getState().startRoutingTo(makePlace(), { lat: 20.95, lng: 105.74 });
-    useStore.getState().setRoutingMode('bike');
+    await useStore.getState().setRoutingOrigin({ lat: 20.95, lng: 105.74, name: 'Vị trí của tôi', source: 'gps' });
     await vi.waitFor(() => expect(useStore.getState().routingError).toBe('Điểm đến quá xa'));
     expect(useStore.getState().routingResult).toBeNull();
     expect(useStore.getState().routingLoading).toBe(false);

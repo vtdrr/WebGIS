@@ -138,10 +138,7 @@ export interface NearbyParams {
 export interface RoutingParams {
   from: string; // "lat,lng"
   to: string;
-  mode?: 'walk' | 'bike' | 'wheelchair';
-  alternatives?: boolean;
-  steps?: boolean;
-  geometries?: 'geojson' | 'polyline' | 'polyline6';
+  mode?: 'walk';
 }
 
 export interface RoutingStep {

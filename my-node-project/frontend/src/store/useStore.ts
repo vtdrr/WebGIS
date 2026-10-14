@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { Category, Place, PlaceQueryParams, MapState, RoutingResponse, RoutingParams } from '../types';
+import type { Category, Place, PlaceQueryParams, MapState, RoutingResponse } from '../types';
 import { PHENIKAA_CENTER, PHENIKAA_ZOOM } from '../types';
 import { detectLang, translate, type Lang } from '../i18n';
 import { categoriesApi, placesApi, routingApi } from '../services/api';
@@ -87,7 +87,6 @@ interface AppState {
   routingResult: RoutingResponse | null;
   routingLoading: boolean;
   routingError: string | null;
-  routingMode: RoutingParams['mode'];
   setRoutingFrom: (point: RoutePoint | null) => void;
   setRoutingOrigin: (origin: Place | { lat: number; lng: number; name: string; source?: RoutePoint['source'] } | null) => Promise<void>;
   /** True while the user is choosing the route origin by clicking on the map */
@@ -95,11 +94,9 @@ interface AppState {
   setRoutePicking: (picking: boolean) => void;
   swapRouting: () => Promise<void>;
   setRoutingTo: (place: Place | null) => void;
-  setRoutingMode: (mode: RoutingParams['mode']) => void;
   fetchRoute: (
     from: { lat: number; lng: number; name: string },
     to: { lat: number; lng: number; name: string },
-    mode: RoutingParams['mode'],
   ) => Promise<void>;
   startRoutingTo: (place: Place, userPosition?: { lat: number; lng: number } | null) => Promise<void>;
   clearRouting: () => void;
@@ -124,7 +121,7 @@ export const useStore = create<AppState>()(
         const categories = await categoriesApi.list();
         set({ categories, categoriesLoading: false });
       } catch (err) {
-        set({ categoriesError: err instanceof Error ? err.message : 'Failed to load categories', categoriesLoading: false });
+          set({ categoriesError: err instanceof Error ? err.message : 'Không tải được danh mục', categoriesLoading: false });
       }
     },
 
@@ -146,7 +143,7 @@ export const useStore = create<AppState>()(
           placesLoading: false,
         });
       } catch (err) {
-        set({ placesError: err instanceof Error ? err.message : 'Failed to load places', placesLoading: false });
+          set({ placesError: err instanceof Error ? err.message : 'Không tải được địa điểm', placesLoading: false });
       }
     },
     loadMorePlaces: async () => {
@@ -161,7 +158,7 @@ export const useStore = create<AppState>()(
           placesLoading: false,
         });
       } catch (err) {
-        set({ placesError: err instanceof Error ? err.message : 'Failed to load more places', placesLoading: false });
+          set({ placesError: err instanceof Error ? err.message : 'Không tải thêm được địa điểm', placesLoading: false });
       }
     },
 
@@ -210,7 +207,7 @@ export const useStore = create<AppState>()(
         const response = await placesApi.search({ q: query, limit: 10 });
         set({ searchResults: response.data, searchLoading: false });
       } catch (err) {
-        set({ searchError: err instanceof Error ? err.message : 'Search failed', searchLoading: false });
+          set({ searchError: err instanceof Error ? err.message : 'Tìm kiếm không thành công', searchLoading: false });
       }
     },
     clearSearch: () => set({ searchResults: [], searchQuery: '', searchError: null }),
@@ -250,18 +247,10 @@ export const useStore = create<AppState>()(
     routingResult: null,
     routingLoading: false,
     routingError: null,
-    routingMode: 'walk',
     setRoutingFrom: (point) => set({ routingFrom: point }),
     routePicking: false,
     setRoutePicking: (picking) => set({ routePicking: picking }),
     setRoutingTo: (place) => set({ routingTo: place }),
-    setRoutingMode: (mode) => {
-      set({ routingMode: mode });
-      const { routingFrom, routingTo } = get();
-      if (routingFrom && routingTo) {
-        get().fetchRoute(routingFrom, placeToRoutePoint(routingTo), mode);
-      }
-    },
     setRoutingOrigin: async (origin) => {
       if (!origin) {
         set({ routingFrom: null, routingResult: null, routingError: null });
@@ -269,20 +258,20 @@ export const useStore = create<AppState>()(
       }
       const from: RoutePoint = 'name_vi' in origin ? placeToRoutePoint(origin) : origin;
       set({ routingFrom: from, routingError: null, routePicking: false });
-      const { routingTo, routingMode } = get();
-      if (routingTo) await get().fetchRoute(from, placeToRoutePoint(routingTo), routingMode);
+      const { routingTo } = get();
+      if (routingTo) await get().fetchRoute(from, placeToRoutePoint(routingTo));
     },
     swapRouting: async () => {
-      const { routingFrom, routingTo, mapPlaces, places, routingMode } = get();
+      const { routingFrom, routingTo, mapPlaces, places } = get();
       if (!routingFrom?.placeId || !routingTo) return;
       const newTo = [...mapPlaces, ...places].find((p) => p.id === routingFrom.placeId);
       if (!newTo) return;
       const newFrom = placeToRoutePoint(routingTo);
       set({ routingFrom: newFrom, routingTo: newTo, routingError: null });
-      await get().fetchRoute(newFrom, placeToRoutePoint(newTo), routingMode);
+      await get().fetchRoute(newFrom, placeToRoutePoint(newTo));
     },
-    fetchRoute: async (from, to, mode) => {
-      await fetchRouteImpl(set, get, from, to, mode);
+    fetchRoute: async (from, to) => {
+      await fetchRouteImpl(set, get, from, to);
     },
     startRoutingTo: async (place, userPosition) => {
       // Without a GPS fix the user must pick an origin explicitly
@@ -297,7 +286,7 @@ export const useStore = create<AppState>()(
         // No GPS: let the user click their position on the map right away
         routePicking: !from,
       });
-      if (from) await get().fetchRoute(from, placeToRoutePoint(place), get().routingMode);
+      if (from) await get().fetchRoute(from, placeToRoutePoint(place));
     },
     clearRouting: () => set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null, routePicking: false }),
   }))
@@ -318,14 +307,13 @@ async function fetchRouteImpl(
   get: () => AppState,
   from: { lat: number; lng: number; name: string },
   to: { lat: number; lng: number; name: string },
-  mode: RoutingParams['mode'],
 ): Promise<void> {
   set({ routingLoading: true, routingError: null });
   try {
     const result = await routingApi.getDirections({
       from: `${from.lat},${from.lng}`,
       to: `${to.lat},${to.lng}`,
-      mode,
+      mode: 'walk',
     });
     set({ routingResult: result, routingLoading: false });
   } catch (err) {

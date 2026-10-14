@@ -3,6 +3,13 @@ import { extname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type pg from 'pg';
 import { pool } from './pool.js';
+import {
+  assertValidPolygonWkt,
+  GeometryValidationError,
+  normalizePointCoordinates,
+  normalizePolygonCoordinates,
+  polygonCoordinatesToWkt,
+} from '../modules/common/geometry.js';
 
 /** One place to import. Category is referenced by its code (e.g. "building"). */
 export interface PlaceImportRow {
@@ -109,7 +116,22 @@ function checkAndBuild(raw: Record<string, unknown>, index: number, issues: Impo
   if (lat !== undefined && lng !== undefined && (lat < -90 || lat > 90 || lng < -180 || lng > 180)) {
     return issues.push({ row, message: `${code}: coordinates out of range` }), null;
   }
-  if (lat === undefined && !polygon) {
+  if (lat !== undefined && lng !== undefined) {
+    try {
+      normalizePointCoordinates([lng, lat]);
+    } catch (error) {
+      return issues.push({ row, message: `${code}: ${(error as Error).message}` }), null;
+    }
+  }
+  let normalizedPolygon: number[][][] | undefined;
+  if (polygon) {
+    try {
+      normalizedPolygon = normalizePolygonCoordinates(polygon);
+    } catch (error) {
+      return issues.push({ row, message: `${code}: ${(error as Error).message}` }), null;
+    }
+  }
+  if (lat === undefined && !normalizedPolygon) {
     return issues.push({ row, message: `${code}: needs lat/lng or a polygon` }), null;
   }
   if (floor !== undefined && !Number.isInteger(floor)) {
@@ -128,7 +150,7 @@ function checkAndBuild(raw: Record<string, unknown>, index: number, issues: Impo
     lat,
     lng,
     floor,
-    polygon,
+    polygon: normalizedPolygon,
   };
 }
 
@@ -222,8 +244,22 @@ export async function importPlaces(
       return summary;
     }
 
+    for (const [index, row] of rows.entries()) {
+      if (!row.polygon) continue;
+      try {
+        await assertValidPolygonWkt(client, polygonCoordinatesToWkt(row.polygon));
+      } catch (error) {
+        await client.query('ROLLBACK');
+        summary.issues.push({
+          row: index + 1,
+          message: `${row.code}: ${error instanceof GeometryValidationError ? error.message : 'invalid polygon geometry'}`,
+        });
+        return summary;
+      }
+    }
+
     for (const r of rows) {
-      const polygonWkt = r.polygon ? toWkt(r.polygon) : null;
+      const polygonWkt = r.polygon ? polygonCoordinatesToWkt(r.polygon) : null;
       const { rows: res } = await client.query<{ inserted: boolean }>(
         `INSERT INTO places (category_id, code, name_vi, name_en, description_vi, description_en,
                              geom_point, geom_polygon, floor, contact_phone, contact_email)
@@ -257,15 +293,6 @@ export async function importPlaces(
   } finally {
     client.release();
   }
-}
-
-function toWkt(rings: number[][][]): string {
-  const wkt = rings.map((ring) => {
-    const pts = ring.map(([x, y]) => `${x} ${y}`);
-    if (pts[0] !== pts[pts.length - 1]) pts.push(pts[0]);
-    return `(${pts.join(',')})`;
-  });
-  return `POLYGON(${wkt.join(',')})`;
 }
 
 // ---------------------------------------------------------------------------

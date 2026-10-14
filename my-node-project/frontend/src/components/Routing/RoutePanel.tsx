@@ -4,17 +4,8 @@ import { useStore } from '../../store/useStore';
 import { useT } from '../../i18n/useT';
 import { formatDistance, formatDuration } from '../../utils/format';
 import { Icon } from '../UI';
-import type { RoutingParams } from '../../types';
-
 const GPS_ORIGIN = '__gps__';
 const MAP_ORIGIN = '__map__';
-
-type Mode = NonNullable<RoutingParams['mode']>;
-const MODES: Array<{ value: Mode; icon: string }> = [
-  { value: 'walk', icon: '🚶' },
-  { value: 'bike', icon: '🚴' },
-  { value: 'wheelchair', icon: '♿' },
-];
 
 interface RoutePanelProps {
   /** Current GPS fix, if any */
@@ -25,8 +16,8 @@ interface RoutePanelProps {
 export function RoutePanel({ gpsPosition }: RoutePanelProps) {
   const { t, placeName } = useT();
   const {
-    mapPlaces, routingFrom, routingTo, routingResult, routingLoading, routingError, routingMode,
-    setRoutingMode, setRoutingOrigin, routePicking, setRoutePicking, swapRouting, clearRouting,
+    mapPlaces, routingFrom, routingTo, routingResult, routingLoading, routingError,
+    setRoutingOrigin, routePicking, setRoutePicking, swapRouting, clearRouting,
   } = useStore(
     useShallow((s) => ({
       mapPlaces: s.mapPlaces,
@@ -35,8 +26,6 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
       routingResult: s.routingResult,
       routingLoading: s.routingLoading,
       routingError: s.routingError,
-      routingMode: s.routingMode,
-      setRoutingMode: s.setRoutingMode,
       setRoutingOrigin: s.setRoutingOrigin,
       routePicking: s.routePicking,
       setRoutePicking: s.setRoutePicking,
@@ -81,20 +70,11 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
       </header>
 
       <div className="route-panel__body">
-        <div className="route-panel__modes" role="group">
-          {MODES.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              className={`mode-button${routingMode === m.value ? ' is-active' : ''}`}
-              aria-pressed={routingMode === m.value}
-              disabled={!routingFrom || !routingTo}
-              onClick={() => setRoutingMode(m.value)}
-            >
-              <span aria-hidden="true">{m.icon}</span>
-              {t(`route.${m.value}` as const)}
-            </button>
-          ))}
+        <div className="route-panel__modes" aria-label={t('route.walkOnly')}>
+          <span className="mode-button is-active">
+            <span aria-hidden="true">🚶</span>
+            {t('route.walk')}
+          </span>
         </div>
 
         <div className="route-panel__endpoints">

@@ -9,7 +9,6 @@ import type {
   PaginatedResponse,
   SearchParams,
   SearchResult,
-  NearbyParams,
   RoutingParams,
   RoutingResponse,
 } from '../types';
@@ -53,13 +52,6 @@ export const categoriesApi = {
     return fetchJson<Category[]>(`${API_BASE}/categories`);
   },
 
-  withCounts(): Promise<(Category & { place_count: number })[]> {
-    return fetchJson(`${API_BASE}/categories/with-counts`);
-  },
-
-  get(id: number): Promise<Category> {
-    return fetchJson(`${API_BASE}/categories/${id}`);
-  },
 };
 
 // Places
@@ -68,34 +60,16 @@ export const placesApi = {
     return fetchJson(`${API_BASE}/places?${toQuery(params)}`);
   },
 
-  getGeoJSON(category?: string): Promise<GeoJSON.FeatureCollection> {
-    return fetchJson(`${API_BASE}/places/geojson${category ? `?${toQuery({ category })}` : ''}`);
-  },
-
-  get(id: string): Promise<Place> {
-    return fetchJson(`${API_BASE}/places/${id}`);
-  },
-
   search(params: SearchParams): Promise<{ data: SearchResult[]; meta: { query: string; took_ms: number } }> {
     return fetchJson(`${API_BASE}/places/search?${toQuery(params)}`);
   },
 
-  nearby(params: NearbyParams): Promise<Place[]> {
-    return fetchJson(`${API_BASE}/places/nearby?${toQuery(params)}`);
-  },
 };
 
 // Routing
 export const routingApi = {
   getDirections(params: RoutingParams): Promise<RoutingResponse> {
     return fetchJson(`${API_BASE}/routing?${toQuery(params)}`);
-  },
-};
-
-// Health
-export const healthApi = {
-  check(): Promise<{ status: string; timestamp: string }> {
-    return fetchJson('/health');
   },
 };
 

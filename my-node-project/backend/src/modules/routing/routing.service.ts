@@ -4,8 +4,6 @@ import { query } from '../../db/pool.js';
 // Types
 // =============================================
 
-export type RoutingMode = 'walk' | 'bike' | 'wheelchair';
-
 interface GraphNode {
   code: string;
   name: string;
@@ -57,7 +55,7 @@ export interface RouteResult {
     distance: number;
   }>;
   meta: {
-    mode: string;
+    mode: 'walk';
     took_ms: number;
     fallback: boolean;
     nodes: number;
@@ -74,12 +72,8 @@ export class RoutingError extends Error {
   }
 }
 
-// Walking / biking / wheelchair speeds (m/s)
-const MODE_SPEED: Record<RoutingMode, number> = {
-  walk: 1.39,      // ~5 km/h
-  bike: 4.17,      // ~15 km/h
-  wheelchair: 1.11, // ~4 km/h
-};
+// Walking speed in metres per second (~5 km/h).
+const WALK_SPEED = 1.39;
 
 /** Endpoints farther than this from every path node are rejected */
 export const MAX_ORIGIN_DISTANCE_M = 3000;
@@ -323,16 +317,14 @@ export class RoutingService {
     fromLng: number,
     toLat: number,
     toLng: number,
-    mode: RoutingMode = 'walk',
-    _alternatives = false,
   ): Promise<RouteResult> {
     const start = Date.now();
-    const speed = MODE_SPEED[mode];
+    const speed = WALK_SPEED;
 
     const { nodes, adjacency } = await loadGraph();
 
     if (nodes.size === 0) {
-      return this.fallbackRoute(fromLat, fromLng, toLat, toLng, speed, mode, start, 'Điểm xuất phát', 'Điểm đến');
+      return this.fallbackRoute(fromLat, fromLng, toLat, toLng, speed, start, 'Điểm xuất phát', 'Điểm đến');
     }
 
     const fromCandidates = nearestNodes(nodes, fromLat, fromLng);
@@ -363,7 +355,7 @@ export class RoutingService {
     // Not connected, or both ends belong to the same node (no mapped path to follow)
     if (!best || best.path.pathEdges.length === 0) {
       return this.fallbackRoute(
-        fromLat, fromLng, toLat, toLng, speed, mode, start,
+        fromLat, fromLng, toLat, toLng, speed, start,
         fromCandidates[0].node.name,
         toCandidates[0].node.name,
       );
@@ -450,7 +442,7 @@ export class RoutingService {
           distance: Math.round(totalDistance),
           duration: Math.round(totalDuration),
           weight: Math.round(totalDuration),
-          weight_name: mode === 'bike' ? 'routability' : 'duration',
+          weight_name: 'duration',
           legs: [
             {
               distance: Math.round(totalDistance),
@@ -466,7 +458,7 @@ export class RoutingService {
         { location: [toLng, toLat], name: toSnap.node.name, distance: Math.round(toSnap.distanceM) },
       ],
       meta: {
-        mode,
+        mode: 'walk',
         took_ms: Date.now() - start,
         fallback: false,
         nodes: route.pathEdges.length + 1,
@@ -481,7 +473,6 @@ export class RoutingService {
     toLat: number,
     toLng: number,
     speed: number,
-    mode: RoutingMode,
     startMs: number,
     fromName: string,
     toName: string,
@@ -533,7 +524,7 @@ export class RoutingService {
         { location: [toLng, toLat], name: toName, distance: 0 },
       ],
       meta: {
-        mode,
+        mode: 'walk',
         took_ms: Date.now() - startMs,
         fallback: true,
         nodes: 0,

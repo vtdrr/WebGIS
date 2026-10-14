@@ -8,22 +8,17 @@ const routingQuerySchema = {
   properties: {
     from: { type: 'string', pattern: '^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$' },
     to: { type: 'string', pattern: '^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$' },
-    mode: { type: 'string', enum: ['walk', 'bike', 'wheelchair'], default: 'walk' },
-    alternatives: { type: 'boolean', default: false },
-    steps: { type: 'boolean', default: true },
-    geometries: { type: 'string', enum: ['geojson', 'polyline', 'polyline6'], default: 'geojson' },
+    mode: { type: 'string', enum: ['walk'], default: 'walk' },
   },
 };
 
 export async function routingRoutes(app: FastifyInstance) {
   app.get('/', {
-    schema: { tags: ['Routing'], summary: 'Get walking/biking directions between two points', querystring: routingQuerySchema },
+    schema: { tags: ['Routing'], summary: 'Get walking directions between two points', querystring: routingQuerySchema },
   }, async (request, reply) => {
-    const { from, to, mode, alternatives } = request.query as {
+    const { from, to } = request.query as {
       from: string;
       to: string;
-      mode: 'walk' | 'bike' | 'wheelchair';
-      alternatives: boolean;
     };
 
     const [fromLat, fromLng] = from.split(',').map(Number);
@@ -40,7 +35,7 @@ export async function routingRoutes(app: FastifyInstance) {
     }
 
     try {
-      return await routingService.findRoute(fromLat, fromLng, toLat, toLng, mode, alternatives);
+      return await routingService.findRoute(fromLat, fromLng, toLat, toLng);
     } catch (err) {
       if (err instanceof RoutingError) {
         return reply.code(err.statusCode).send({ message: err.message });

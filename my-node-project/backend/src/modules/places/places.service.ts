@@ -2,49 +2,11 @@ import { query, getClient } from '../../db/pool.js';
 import { invalidateGraphCache } from '../routing/routing.service.js';
 import { parseSearch, matchCondition } from './search.js';
 import type { CreatePlace, UpdatePlace, PlaceQuery, PlaceResponse, PlaceListResponse } from '../common/schemas.js';
+import { assertValidPolygonWkt, normalizePointCoordinates, polygonCoordinatesToWkt } from '../common/geometry.js';
 
 /** Error with HTTP status, handled by the global error handler */
 function badRequest(message: string): Error {
   return Object.assign(new Error(message), { statusCode: 400 });
-}
-
-/** Validate & normalize a GeoJSON Point coordinate pair to [lng, lat] */
-function normalizePoint(point: CreatePlace['geom_point']): [number, number] {
-  const coords = Array.isArray(point) ? point : point?.coordinates;
-  if (!Array.isArray(coords) || coords.length < 2) {
-    throw badRequest('geom_point must be a [lng, lat] pair or GeoJSON Point');
-  }
-  const [lng, lat] = coords;
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
-    throw badRequest('geom_point coordinates must be finite numbers');
-  }
-  return [lng, lat];
-}
-
-/** Validate GeoJSON Polygon rings and build WKT (auto-closes open rings) */
-function polygonToWKT(coordinates: unknown): string {
-  if (!Array.isArray(coordinates) || coordinates.length === 0) {
-    throw badRequest('geom_polygon.coordinates must be a non-empty array of rings');
-  }
-  const wktRings = coordinates.map((ring) => {
-    if (!Array.isArray(ring) || ring.length < 4) {
-      throw badRequest('Each polygon ring needs at least 4 positions');
-    }
-    const points = ring.map((p) => {
-      if (!Array.isArray(p) || p.length < 2) {
-        throw badRequest('Each polygon position must be a [lng, lat] pair');
-      }
-      const [lng, lat] = p;
-      if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
-        throw badRequest('Polygon coordinates must be finite numbers');
-      }
-      return `${lng} ${lat}`;
-    });
-    // Auto-close the ring if it is not closed
-    if (points[0] !== points[points.length - 1]) points.push(points[0]);
-    return `(${points.join(',')})`;
-  });
-  return `POLYGON(${wktRings.join(',')})`;
 }
 
 export interface GeoJSONFeatureCollection {
@@ -261,13 +223,14 @@ export class PlacesService {
       ];
 
       if (data.geom_point) {
-        const [lng, lat] = normalizePoint(data.geom_point);
+        const [lng, lat] = normalizePointCoordinates(data.geom_point);
         geomPointSql = `ST_SetSRID(ST_MakePoint($${values.length + 1}, $${values.length + 2}), 4326)`;
         values.push(lng, lat);
       }
 
       if (data.geom_polygon) {
-        const wkt = polygonToWKT(data.geom_polygon.coordinates);
+        const wkt = polygonCoordinatesToWkt(data.geom_polygon.coordinates);
+        await assertValidPolygonWkt(client, wkt);
         geomPolygonSql = `ST_GeomFromText($${values.length + 1}, 4326)`;
         values.push(wkt);
       }
@@ -349,14 +312,20 @@ export class PlacesService {
 
     // Handle geometry updates separately
     if (data.geom_point) {
-      const [lng, lat] = normalizePoint(data.geom_point);
+      const [lng, lat] = normalizePointCoordinates(data.geom_point);
       fields.push(`geom_point = ST_SetSRID(ST_MakePoint($${paramIndex}, $${paramIndex + 1}), 4326)`);
       values.push(lng, lat);
       paramIndex += 2;
     }
 
     if (data.geom_polygon) {
-      const wkt = polygonToWKT(data.geom_polygon.coordinates);
+      const wkt = polygonCoordinatesToWkt(data.geom_polygon.coordinates);
+      const client = await getClient();
+      try {
+        await assertValidPolygonWkt(client, wkt);
+      } finally {
+        client.release();
+      }
       fields.push(`geom_polygon = ST_GeomFromText($${paramIndex}, 4326)`);
       values.push(wkt);
       paramIndex++;

@@ -68,13 +68,9 @@ describe('GET /api/routing', () => {
     expect(backward.body.routes[0].distance).toBe(forward.body.routes[0].distance);
   });
 
-  it('takes longer on foot than by bike, and longest by wheelchair', async () => {
-    const walk = (await route(A, C, 'walk')).body.routes[0];
-    const bike = (await route(A, C, 'bike')).body.routes[0];
-    const wheelchair = (await route(A, C, 'wheelchair')).body.routes[0];
-    expect(bike.duration).toBeLessThan(walk.duration);
-    expect(walk.duration).toBeLessThan(wheelchair.duration);
-    expect(bike.distance).toBe(walk.distance);
+  it('reports the supported walking mode', async () => {
+    const response = await route(A, C, 'walk');
+    expect(response.body.meta.mode).toBe('walk');
   });
 
   it('rejects an origin too far from the campus', async () => {
@@ -180,5 +176,9 @@ describe('GET /api/routing validation', () => {
 
   it('rejects an unknown mode', async () => {
     expect((await get({ from: '20.96,105.74', to: '20.97,105.75', mode: 'flying' })).statusCode).toBe(400);
+  });
+
+  it.each(['bike', 'wheelchair'])('rejects unsupported mode %s', async (mode) => {
+    expect((await get({ from: '20.96,105.74', to: '20.97,105.75', mode })).statusCode).toBe(400);
   });
 });

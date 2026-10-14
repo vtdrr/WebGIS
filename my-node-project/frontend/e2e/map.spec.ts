@@ -48,22 +48,22 @@ test.describe('map', () => {
     await expect(panel.getByText('Quãng đường')).toBeVisible();
     await expect(panel.getByText('Thời gian')).toBeVisible();
 
-    await panel.getByRole('button', { name: /Xe đạp/ }).click();
-    await expect(panel.getByRole('button', { name: /Xe đạp/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel.getByText('Đi bộ')).toBeVisible();
+    await expect(panel.getByText('Xe đạp')).toHaveCount(0);
+    await expect(panel.getByText('Xe lăn')).toHaveCount(0);
     await expect(panel.getByText('Quãng đường')).toBeVisible();
 
     await panel.getByRole('button', { name: 'Đóng chỉ đường' }).click();
     await expect(panel).toBeHidden();
   });
 
-  test('language switch translates the UI and is remembered', async ({ page }) => {
+  test('remains Vietnamese despite an old English language preference', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Phenikaa WebGIS' })).toBeVisible();
     await expect(page.getByText('Bản đồ khuôn viên trường')).toBeVisible();
-    await page.getByRole('button', { name: 'Chuyển sang English' }).click();
-    await expect(page.getByText('Campus map')).toBeVisible();
-    await expect(page.getByPlaceholder('Search buildings, classrooms, library...')).toBeVisible();
+    await page.evaluate(() => localStorage.setItem('webgis.lang', 'en'));
     await page.reload();
-    await expect(page.getByText('Campus map')).toBeVisible();
+    await expect(page.getByText('Bản đồ khuôn viên trường')).toBeVisible();
+    await expect(page.getByPlaceholder('Tìm kiếm tòa nhà, phòng học, thư viện...')).toBeVisible();
   });
 });
 

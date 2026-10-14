@@ -32,15 +32,6 @@ services:
       db:
         condition: service_healthy
 
-  # Optional: OSRM for routing (Phase 4)
-  # osrm:
-  #   image: osrm/osrm-backend:latest
-  #   container_name: phenikaa-osrm
-  #   volumes:
-  #     - ./data/osrm:/data
-  #   ports:
-  #     - "5000:5000"
-  #   command: ["osrm-routed", "--algorithm", "mld", "/data/phenikaa.osrm"]
 
 volumes:
   pgdata:

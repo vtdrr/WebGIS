@@ -29,14 +29,12 @@ describe('api client', () => {
     await categoriesApi.list();
     await placesApi.list({ page: 2, limit: 50, category: 'lab', q: undefined });
     await placesApi.search({ q: 'thu vien', limit: 5 });
-    await placesApi.getGeoJSON('gate');
-    await routingApi.getDirections({ from: '1,2', to: '3,4', mode: 'bike' });
+    await routingApi.getDirections({ from: '1,2', to: '3,4', mode: 'walk' });
     expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
       '/api/categories',
       '/api/places?page=2&limit=50&category=lab',
       '/api/places/search?q=thu+vien&limit=5',
-      '/api/places/geojson?category=gate',
-      '/api/routing?from=1%2C2&to=3%2C4&mode=bike',
+      '/api/routing?from=1%2C2&to=3%2C4&mode=walk',
     ]);
   });
 

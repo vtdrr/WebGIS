@@ -245,10 +245,7 @@ export const searchResponseSchema = z.object({
 export const routingQuerySchema = z.object({
   from: z.string().regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/), // "lat,lng"
   to: z.string().regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/),
-  mode: z.enum(['walk', 'bike', 'wheelchair']).default('walk'),
-  alternatives: z.coerce.boolean().default(false),
-  steps: z.coerce.boolean().default(true),
-  geometries: z.enum(['geojson', 'polyline', 'polyline6']).default('geojson'),
+  mode: z.literal('walk').default('walk'),
 });
 
 export const routingResponseSchema = z.object({
