@@ -101,6 +101,14 @@ Khi `ADMIN_API_KEY` được cấu hình, client phải gửi header `x-admin-ke
 
 Routing chỉ hỗ trợ người đi bộ (đường đi); các tham số `bike` và `wheelchair` không còn được chấp nhận vì dữ liệu mạng chưa có thuộc tính phù hợp để bảo đảm an toàn/khả năng tiếp cận. Hệ thống ưu tiên mạng đi bộ OSM trong `campus_routing_nodes` / `campus_routing_edges`, chạy Dijkstra trên hình học đường thật. Chạy `npm run db:import-osm-paths` để lấy dữ liệu quanh trường (bbox mặc định: `20.956,105.742,20.970,105.756`); có thể đổi bằng `npm run db:import-osm-paths -- --bbox=south,west,north,east`. Lệnh này cần internet tới Overpass API và thay thế dữ liệu trong hai bảng mạng OSM, không đụng tới địa điểm hay `campus_paths`. Tuyến vẫn có thể chứa đoạn nối thẳng ngoài mạng đã nhập hoặc fallback đường chim bay khi chưa có tuyến kết nối; cần đối chiếu thực địa trước khi dùng như chỉ dẫn chính xác. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
 
+Đồ thị đi bộ còn bổ sung các hành lang tầng 1 A1–A9, A2–A10, lối thông A9–A10 và vùng mở giữa A2/A3/A5/A7 từ `backend/src/modules/routing/campus-walkways.json`. Các kết nối này hai chiều; các hình polygon dạng mũi tên bị bỏ qua. Đường nối từ A7/A9/A10 sang mạng OSM được dùng để liên kết đường trong nhà với lối đi bên ngoài.
+
+Các tuyến trung chuyển qua A1, A2, A7, A8 và B2 được tổng hợp trong `backend/src/modules/routing/campus-transfer-routes.json`; chúng được thêm vào cùng đồ thị đi bộ hai chiều để Dijkstra có thể ghép nhiều đoạn giữa điểm xuất phát và đích.
+
+Khi điểm xuất phát hoặc điểm đến khớp Cổng chính/Cổng phụ và cặp điểm có tuyến khai báo, API ưu tiên LineString trong `backend/src/modules/routing/campus-gate-routes.json`. Hình tuyến được giữ nguyên; đi ngược chiều dùng chính đường đó đảo thứ tự tọa độ, không áp quy tắc một chiều. Các cặp chưa khai báo tiếp tục dùng đồ thị đi bộ chung.
+
+Các tuyến trung chuyển được tổng hợp tại `backend/src/modules/routing/campus-transfer-routes.json` từ năm hub A1, A2, A7, A8 và B2. Tuyến trực tiếp đã khai báo được ưu tiên; nếu không có, đồ thị đi bộ tìm đường ghép qua các tuyến trung chuyển và mạng OSM.
+
 `npm run db:import-osm-places` đồng bộ các feature được duyệt từ Overpass trong bbox `20.958,105.744,20.966,105.753`, thay các record OSM/sample thuộc bộ đồng bộ và giữ địa điểm admin thủ công. Danh sách OSM gồm A1–A8 (giảng đường 7 tầng), A9–A10 (tòa nhà chính), B1–B4 (thực hành kỹ thuật), 3 ký túc xá, 2 căng tin, sân bóng, nhà thi đấu và y tế học đường. Thư viện A10 (tầng 4–6), 2 cổng, sân tennis và 4 bãi giữ xe được nhập bằng tọa độ đã cung cấp; chúng được upsert theo code và không bị xóa khi đồng bộ OSM. Danh mục “Phòng ban hành chính” và “Khác” bị ẩn; quảng trường bị loại. OSM feature được định danh bằng node/way ID và giữ tên OSM; không tự đặt tên cho đối tượng OSM thiếu tên. Dữ liệu OSM © OpenStreetMap contributors, ODbL.
 
 Giao diện chỉ hỗ trợ tiếng Việt. Footprint có polygon hiển thị viền nét đứt ở lớp bản đồ; ở lớp vệ tinh địa điểm được thể hiện bằng marker, địa điểm đang chọn được nhấn mạnh.
@@ -135,7 +143,7 @@ Trên giao diện, nếu không có GPS, bấm “Chỉ đường” để bật
 
 ## 🔧 Scripts
 
-**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` (verify) | `npm run db:import-osm-paths` | `npm run db:import-osm-places` | `npm run db:import-places` | `npm run lint` | `npm run typecheck` | `npm test`
+**Backend:** `npm run dev` | `npm run build` | `npm start` | `npm run db:migrate` | `npm run db:seed` (verify) | `npm run db:ensure-e2e` (test only) | `npm run db:import-osm-paths` | `npm run db:import-osm-places` | `npm run db:import-places` | `npm run lint` | `npm run typecheck` | `npm test`
 
 **Frontend:** `npm run dev` | `npm run build` | `npm run preview` | `npm run lint` | `npm test` | `npm run e2e`
 
@@ -143,15 +151,31 @@ Trên giao diện, nếu không có GPS, bấm “Chỉ đường” để bật
 
 ## 🧪 Kiểm thử
 
-Backend dùng [Vitest](https://vitest.dev). Test cần PostgreSQL/PostGIS đang chạy và quyền tạo/xóa database; trước mỗi lượt chạy, test **drop và tạo lại** database riêng có tên chứa `test` (mặc định `phenikaa_gis_test`), sau đó nạp `sql/init.sql`. Không trỏ `TEST_DATABASE_URL` tới database phát triển vì database test sẽ bị xóa. Frontend cũng dùng Vitest để chạy unit/component tests. Nếu chưa cài dependencies, chạy `npm install` trong thư mục backend hoặc frontend tương ứng.
+Backend dùng [Vitest](https://vitest.dev). Integration tests cần PostgreSQL/PostGIS test service riêng ở `127.0.0.1:5433` (Compose file `docker-compose.test.yml`, volume test riêng). Global setup DROP/CREATE `phenikaa_gis_test`; migration test cũng tạo/xóa DB hậu tố `_migrate`. Không dùng `phenikaa_gis`, port 5432, hay volume development làm test target. Cấu hình fail-fast từ `TEST_DATABASE_URL`; hướng dẫn và test E2E isolated xem [docs/TESTING.md](my-node-project/docs/TESTING.md). Frontend Vitest chạy unit/component tests.
 
 ```powershell
-# Từ thư mục gốc repo
-cd my-node-project
-docker compose up -d db     # cần PostgreSQL/PostGIS đang chạy
+# Từ thư mục my-node-project; chỉ tạo test-only env file lần đầu, rồi thay password placeholder
+if (!(Test-Path .env.test.local)) { Copy-Item .env.test.example .env.test.local }
+docker compose --env-file .env.test.local -p phenikaa-webgis-test -f docker-compose.test.yml up -d db-test
 cd backend
-npm test                    # chạy toàn bộ
-npm run test:watch          # chạy lại khi sửa code
+$test = ConvertFrom-StringData (Get-Content ../.env.test.local -Raw)
+$env:TEST_DATABASE_URL = $test.TEST_DATABASE_URL
+$env:DATABASE_URL = $test.TEST_DATABASE_URL
+Remove-Item Env:ADMIN_API_KEY -ErrorAction SilentlyContinue
+npm test
 ```
 
-Mặc định test kết nối `postgres://postgres:postgres@localhost:5432/phenikaa_gis_test`; có thể đổi bằng biến môi trường `TEST_DATABASE_URL` (tên database phải chứa chữ `test`). CI (GitHub Actions) chạy typecheck, lint, build và test cho cả backend và frontend.
+CI dùng PostGIS service riêng ở port 5433. Không chạy test nếu `TEST_DATABASE_URL` chưa trỏ tới test service riêng. E2E Playwright cần `phenikaa_gis_e2e` trong cùng isolated test service; xem [docs/TESTING.md](my-node-project/docs/TESTING.md).
+
+## 📖 Tài liệu
+
+- [Kiến trúc hệ thống](my-node-project/docs/ARCHITECTURE.md)
+- [Cơ sở dữ liệu và migration](my-node-project/docs/DATABASE.md)
+- [Tài liệu API](my-node-project/docs/API.md)
+- [Hướng dẫn sử dụng](my-node-project/docs/USER_GUIDE.md)
+- [Thiết lập phát triển](my-node-project/docs/DEVELOPMENT.md)
+- [Chiến lược và kết quả kiểm thử](my-node-project/docs/TESTING.md)
+- [Hạn chế đã biết](my-node-project/docs/LIMITATIONS.md)
+- [Checklist trình diễn](my-node-project/docs/DEMO_CHECKLIST.md)
+- [Bản thảo báo cáo đồ án](my-node-project/docs/PROJECT_REPORT.md)
+- [Báo cáo kiểm toán kỹ thuật](my-node-project/docs/AUDIT_REPORT.md)
