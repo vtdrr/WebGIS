@@ -39,6 +39,8 @@ $env:DB_SSL = 'false'
 $env:NODE_ENV = 'test'
 $env:PORT = '3100'  # 3000 có thể được ứng dụng khác sử dụng
 $env:WEBGIS_API_PROXY_TARGET = 'http://127.0.0.1:3100'
+$env:RATE_LIMIT_MAX = '1000000'  # chỉ nới giới hạn trên backend test do Playwright khởi chạy
+$env:UPLOAD_DIR = Join-Path $env:TEMP 'phenikaa-webgis-e2e-uploads'
 $env:ADMIN_API_KEY = $settings.E2E_ADMIN_KEY
 $env:E2E_ADMIN_KEY = $settings.E2E_ADMIN_KEY
 cd ../backend
@@ -58,12 +60,12 @@ Fail-closed checks cũng đã chạy: bỏ `TEST_DATABASE_URL` khiến Vitest co
 |---|---|
 | Backend `npm run typecheck`, `npm run lint`, `npm run build` | Thành công sau khi sửa type lỗi trong test dữ liệu routing |
 | Backend `npx vitest list --filesOnly` | 14 files theo `tests/**/*.test.ts` |
-| Backend `npm test -- --reporter=verbose` (isolated service; `ADMIN_API_KEY` unset) | **14 files, 151 tests pass**, gồm CRUD/validation, uploads, migrations, search, main-gate/transfer routing, disconnected fallback và fallback metadata. Lần chạy đầu có 18 assertion write/upload fail do E2E `ADMIN_API_KEY` bị export nhầm; chạy lại với key unset pass toàn bộ, không sửa assertions. |
+| Backend `npm test -- --reporter=verbose` (isolated service; dotenv config tạm rỗng, `ADMIN_API_KEY` unset) | **14 files, 151 tests pass**, gồm CRUD/validation, uploads, migrations, search, main-gate/transfer routing, disconnected fallback và fallback metadata. Lần chạy đầu có 18 assertion write/upload fail do config nạp admin key từ `.env` phát triển; chạy lại không tải `.env` đó pass toàn bộ, không sửa assertions. |
 | Backend routing offline | 2 files, 11 tests pass qua cấu hình Vitest tạm chỉ include `routing.unit.test.ts` và `routing.data.test.ts`, không khai báo `globalSetup`; không kết nối DB |
 | Frontend `npm run typecheck`, `npm run lint`, `npm run build` | Thành công |
-| Frontend `npm test` | **11 files, 89 tests pass** |
+| Frontend `npm test` | **12 files, 94 tests pass**; gồm ánh xạ ảnh, lỗi tải và trạng thái fallback |
 | Migration/PostGIS | Baseline và migrations `0001`–`0003` pass trên `phenikaa_gis_e2e` isolated DB |
-| Playwright `npm run e2e -- --reporter=line` | **9/9 Chromium E2E pass** trên app thật và DB E2E isolated. Bao gồm admin CRUD, Leaflet polygon draw/reload/drag/save/unsaved discard, PostGIS `Self-intersection` rejection/rollback, PNG decode/upload/persist/serve và malformed bytes 415. Lần chạy đầu 8/9 do locator subtitle không duy nhất; đã scope vào sidebar, đồng thời E2E routing assert `fallback=false` và geometry nhiều điểm. |
+| Playwright Chromium trên test service riêng | **17/17 E2E pass** trên app thật và DB E2E isolated; gồm admin CRUD/GeometryEditor/upload, ảnh detail, không lộ mã/tầng, no-GPS/place-origin regression, routing và map controls ở năm viewport. |
 
 ## Regression UI/store gần nhất
 
@@ -92,3 +94,17 @@ Lệnh offline routing dùng file cấu hình tạm ngoài repository: `npx vite
 Lượt xác minh 2026-10-21: backend typecheck/lint/build pass; backend integration **14 files/151 tests pass**; frontend typecheck/lint/build pass và Vitest **11 files/89 tests pass**; Playwright **9/9 E2E pass**. API/PostGIS routing runtime pass trong test scenarios. Chưa đo coverage/benchmark hoặc xác minh độ chính xác ngoài thực địa.
 
 Một lần gọi `npm run db:migrate` trên E2E URL trước khi database E2E được tạo thất bại `3D000` (“database does not exist”), không thay đổi schema. `npm run db:ensure-e2e` sau đó tạo đúng database isolated; migration baseline và `0001`–`0003` chạy thành công.
+
+## Regression giao diện ảnh và lựa chọn origin
+
+- Frontend typecheck (`npm run typecheck`), lint (`npm run lint`), Vitest (`npm test`) và production build (`npm run build -- --outDir <thư-mục-tạm>`) pass; Vitest **12 files/94 tests** sau khi bỏ unit tests chỉ phục vụ GPS. Build được chuyển tới thư mục tạm để không ghi đè `frontend/dist` có sẵn.
+- Playwright **17/17 Chromium E2E pass** trên `phenikaa_gis_e2e` trong test PostGIS service riêng. Do cổng 5173 đã có một Vite process, lượt kiểm thử dùng config tạm ngoài repository để chạy frontend ở cổng 5174 và backend ở 3100, không tái sử dụng hoặc dừng process đó. `UPLOAD_DIR` trỏ tới thư mục tạm; ảnh test không ghi vào uploads của ứng dụng.
+- E2E kiểm tra ảnh thư viện, metadata code/tầng ẩn, không có nút/vị trí GPS và không đọc `navigator.geolocation`, click vùng map không tạo origin, dropdown place vẫn gọi routing API; admin CRUD, GeometryEditor, upload, map/search/filter, fallback và mobile vẫn pass. Năm kích thước 1920×1080, 1366×768, 768×1024, 390×844 và 375×667 được kiểm tra bounding box, zoom tile level tăng/giảm thật, pan, mở sơ đồ và panel chỉ đường.
+- Mười một ảnh tham khảo, mã ánh xạ và test mapping được đóng gói cùng frontend; regression build/E2E dùng đường dẫn `/place-images/...`, không cần thư mục ảnh gốc ngoài repository.
+- Playwright test output được ghi ngoài repository tại `C:\Users\ADMIN\AppData\Local\Temp\opencode\webgis-e2e-results`. Bộ test hiện không tự chụp screenshot khi pass.
+
+## Regression vị trí các điều khiển Leaflet
+
+- Phát hiện: nhóm nút nổi đặt absolute trên cùng góc với Leaflet ZoomControl; `margin-top` cố định `182px` desktop/`164px` mobile không tính đúng chiều cao nhóm nút. Nút sơ đồ có thể chồng lên zoom.
+- Bản sửa đặt nhóm app controls thành Leaflet `Control` tại `topleft`. Leaflet xếp nhóm này tuần tự với `ZoomControl`; map identity nằm giữa phía trên. Không thêm z-index hoặc offset zoom thủ công.
+- E2E riêng **5/5 viewport pass** và trong toàn suite **17/17 pass**: kích thước 1920×1080, 1366×768, 768×1024, 390×844, 375×667; kiểm tra bounding boxes không giao nhau, tile zoom tăng/giảm thật, reference modal hoạt động, pan, list/sidebar và panel chỉ đường không che toolbar.

@@ -27,7 +27,6 @@ describe('PlaceDetailPanel', () => {
     render(<PlaceDetailPanel place={full()} onClose={() => undefined} />);
     const dialog = screen.getByRole('dialog', { name: 'Tòa A1' });
     expect(within(dialog).getByText('Mô tả tiếng Việt')).toBeInTheDocument();
-    expect(within(dialog).getByText('Tầng 2')).toBeInTheDocument();
     expect(within(dialog).getByText('024 1234')).toBeInTheDocument();
     expect(within(dialog).getByText('120 người')).toBeInTheDocument();
     expect(within(dialog).getByText('Thứ 2 - Thứ 6')).toBeInTheDocument();
@@ -38,7 +37,13 @@ describe('PlaceDetailPanel', () => {
     // unknown boolean attributes are prettified, false ones are not shown
     expect(within(dialog).getByText('Garden')).toBeInTheDocument();
     expect(within(dialog).queryByText('Điều hòa')).not.toBeInTheDocument();
-    expect(within(dialog).getByAltText('Mặt tiền')).toHaveAttribute('src', '/uploads/a.png');
+    expect(within(dialog).queryByText('Mã địa điểm')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Tầng 2')).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Cả tòa nhà')).not.toBeInTheDocument();
+    const photo = within(dialog).getByAltText('Mặt tiền');
+    expect(photo).toHaveAttribute('src', '/uploads/a.png');
+    fireEvent.load(photo);
+    expect(photo).toBeVisible();
   });
 
   it('always displays Vietnamese content even when English fields exist', () => {
@@ -56,9 +61,58 @@ describe('PlaceDetailPanel', () => {
     expect(screen.getByText('Mô tả tiếng Việt')).toBeInTheDocument();
   });
 
-  it('shows "whole building" when there is no floor', () => {
-    render(<PlaceDetailPanel place={makePlace({ floor: null })} onClose={() => undefined} />);
-    expect(screen.getByText('Cả tòa nhà')).toBeInTheDocument();
+  it('shows the reviewed campus photo for a matched code and preserves aspect-ratio styles', () => {
+    render(<PlaceDetailPanel place={makePlace({ code: 'CAMPUS-LIBRARY-A10', images: [] })} onClose={() => undefined} />);
+    const photo = screen.getByAltText('Không gian thư viện');
+    expect(photo).toHaveAttribute('src', '/place-images/library.jpg');
+    expect(photo).toHaveClass('detail__photo');
+    fireEvent.load(photo);
+    expect(photo).toBeVisible();
+    expect(screen.queryByText('Mã địa điểm')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the bundled photo after an uploaded image fails', () => {
+    render(<PlaceDetailPanel place={{ ...full(), code: 'A1-MAIN' }} onClose={() => undefined} />);
+    fireEvent.error(screen.getByAltText('Mặt tiền'));
+    const fallback = screen.getByAltText('Khu giảng đường A1–A8');
+    expect(fallback).toHaveAttribute('src', '/place-images/buildings-a1-a8.jpg');
+    fireEvent.load(fallback);
+    expect(fallback).toBeVisible();
+  });
+
+  it('shows all valid place-specific uploads without cropping them into fixed thumbnails', () => {
+    render(<PlaceDetailPanel place={makePlace({
+      images: [
+        { url: '/uploads/landscape.jpg', caption: 'Ảnh ngang', is_primary: true },
+        { url: '/uploads/portrait.jpg', caption: 'Ảnh dọc' },
+      ],
+    })} onClose={() => undefined} />);
+    const landscape = screen.getByAltText('Ảnh ngang');
+    const portrait = screen.getByAltText('Ảnh dọc');
+    expect(landscape).toHaveClass('detail__photo');
+    expect(portrait).toHaveClass('detail__photo');
+    fireEvent.load(landscape);
+    fireEvent.load(portrait);
+    expect(landscape).toBeVisible();
+    expect(portrait).toBeVisible();
+  });
+
+  it('shows a Vietnamese no-photo state for unmatched places and failed image candidates', () => {
+    const unknown = makePlace({ code: 'UNKNOWN-PLACE', images: [{ url: '/uploads/broken.jpg' }] });
+    const { rerender } = render(<PlaceDetailPanel place={unknown} onClose={() => undefined} />);
+    fireEvent.error(screen.getByAltText('Tòa A1'));
+    expect(screen.getByRole('status')).toHaveTextContent('Chưa có hình ảnh của địa điểm này.');
+
+    rerender(<PlaceDetailPanel place={makePlace({ id: 'no-photo', code: 'UNKNOWN-PLACE', images: [] })} onClose={() => undefined} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Chưa có hình ảnh của địa điểm này.');
+  });
+
+  it('replaces the previous photo when the selected place changes', () => {
+    const { rerender } = render(<PlaceDetailPanel place={makePlace({ code: 'CAMPUS-LIBRARY-A10', images: [] })} onClose={() => undefined} />);
+    expect(screen.getByAltText('Không gian thư viện')).toHaveAttribute('src', '/place-images/library.jpg');
+    rerender(<PlaceDetailPanel place={makePlace({ id: 'sports-hall', code: 'OSM-W-892574249', images: [] })} onClose={() => undefined} />);
+    expect(screen.queryByAltText('Không gian thư viện')).not.toBeInTheDocument();
+    expect(screen.getByAltText('Nhà thi đấu')).toHaveAttribute('src', '/place-images/sports-hall.jpg');
   });
 
   it('wires the close button, Escape and the directions button', () => {
@@ -72,11 +126,11 @@ describe('PlaceDetailPanel', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('copies name and code', () => {
+  it('copies only the public place name', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     render(<PlaceDetailPanel place={makePlace()} onClose={() => undefined} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sao chép tên và mã' }));
-    expect(writeText).toHaveBeenCalledWith('Tòa A1 - A1');
+    fireEvent.click(screen.getByRole('button', { name: 'Sao chép tên địa điểm' }));
+    expect(writeText).toHaveBeenCalledWith('Tòa A1');
   });
 });

@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { Place } from '../../types';
 import { useT } from '../../i18n/useT';
 import type { MessageKey } from '../../i18n';
+import { getPlacePhotoCandidates } from '../../data/placePhotos';
 import { Icon } from './Icon';
 
 interface PlaceDetailPanelProps {
@@ -37,6 +38,51 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function PlacePhoto({ place }: { place: Place }) {
+  const { placeName, t } = useT();
+  const candidates = getPlacePhotoCandidates(place);
+  const [failedUrls, setFailedUrls] = useState<Set<string>>(() => new Set());
+  const [loadedUrls, setLoadedUrls] = useState<Set<string>>(() => new Set());
+  const uploaded = candidates.filter((candidate) => !candidate.campusReference && !failedUrls.has(candidate.url));
+  const campusReferences = candidates.filter((candidate) => candidate.campusReference && !failedUrls.has(candidate.url));
+  const visibleCandidates = uploaded.length > 0 ? uploaded : campusReferences;
+
+  if (visibleCandidates.length === 0) {
+    return <p className="detail__photo-status" role="status">{t('place.noImages')}</p>;
+  }
+
+  return (
+    <div className="detail__photos">
+      {visibleCandidates.some((candidate) => !loadedUrls.has(candidate.url)) && (
+        <p className="detail__photo-status" role="status">{t('place.imageLoading')}</p>
+      )}
+      {visibleCandidates.map((candidate) => (
+        <figure className="detail__photo-frame" key={`${place.id}:${candidate.url}`}>
+          <img
+            className={`detail__photo${loadedUrls.has(candidate.url) ? ' is-loaded' : ''}`}
+            src={candidate.url}
+            alt={candidate.caption || placeName(place)}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setLoadedUrls((previous) => new Set(previous).add(candidate.url))}
+            onError={() => {
+              setLoadedUrls((previous) => {
+                const next = new Set(previous);
+                next.delete(candidate.url);
+                return next;
+              });
+              setFailedUrls((previous) => new Set(previous).add(candidate.url));
+            }}
+          />
+          {loadedUrls.has(candidate.url) && candidate.caption !== placeName(place) && (
+            <figcaption className="detail__photo-caption">{candidate.caption}</figcaption>
+          )}
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 export function PlaceDetailPanel({ place, onClose, onDirections }: PlaceDetailPanelProps) {
   const { t, placeName, placeDescription, placeCategory } = useT();
 
@@ -52,6 +98,7 @@ export function PlaceDetailPanel({ place, onClose, onDirections }: PlaceDetailPa
   const color = place.category_color || '#3388ff';
   const description = placeDescription(place);
   const amenities = Object.entries(place.attributes ?? {}).filter(([, v]) => v === true);
+  const hasContactInfo = Boolean(place.contact_phone || place.contact_email || place.attributes?.capacity);
 
   return (
     <aside className="detail" role="dialog" aria-label={placeName(place)}>
@@ -71,11 +118,9 @@ export function PlaceDetailPanel({ place, onClose, onDirections }: PlaceDetailPa
       </header>
 
       <div className="detail__content">
-        {place.code && (
-          <Section title={t('place.code')}>
-            <div className="detail__code">{place.code}</div>
-          </Section>
-        )}
+        <Section title={t('place.images')}>
+          <PlacePhoto key={place.id} place={place} />
+        </Section>
 
         {description && (
           <Section title={t('place.description')}>
@@ -83,19 +128,17 @@ export function PlaceDetailPanel({ place, onClose, onDirections }: PlaceDetailPa
           </Section>
         )}
 
-        <Section title={t('place.info')}>
-          <div className="detail__grid">
-            <DetailItem
-              label={t('place.floorLabel')}
-              value={place.floor !== null ? t('place.floor', { floor: place.floor }) : t('place.wholeBuilding')}
-            />
-            {place.contact_phone && <DetailItem label={t('place.phone')} value={place.contact_phone} />}
-            {place.contact_email && <DetailItem label={t('place.email')} value={place.contact_email} />}
-            {place.attributes?.capacity ? (
-              <DetailItem label={t('place.capacity')} value={t('place.people', { n: place.attributes.capacity })} />
-            ) : null}
-          </div>
-        </Section>
+        {hasContactInfo && (
+          <Section title={t('place.info')}>
+            <div className="detail__grid">
+              {place.contact_phone && <DetailItem label={t('place.phone')} value={place.contact_phone} />}
+              {place.contact_email && <DetailItem label={t('place.email')} value={place.contact_email} />}
+              {place.attributes?.capacity ? (
+                <DetailItem label={t('place.capacity')} value={t('place.people', { n: place.attributes.capacity })} />
+              ) : null}
+            </div>
+          </Section>
+        )}
 
         {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
           <Section title={t('place.hours')}>
@@ -122,15 +165,6 @@ export function PlaceDetailPanel({ place, onClose, onDirections }: PlaceDetailPa
           </Section>
         )}
 
-        {place.images && place.images.length > 0 && (
-          <Section title={t('place.images')}>
-            <div className="detail__images">
-              {place.images.map((img, i) => (
-                <img key={`${img.url}-${i}`} src={img.url} alt={img.caption || placeName(place)} loading="lazy" />
-              ))}
-            </div>
-          </Section>
-        )}
       </div>
 
       <footer className="detail__footer">
@@ -148,7 +182,7 @@ export function PlaceDetailPanel({ place, onClose, onDirections }: PlaceDetailPa
           className="btn"
           title={t('place.copy')}
           aria-label={t('place.copy')}
-          onClick={() => navigator.clipboard?.writeText(`${placeName(place)}${place.code ? ` - ${place.code}` : ''}`)}
+          onClick={() => navigator.clipboard?.writeText(placeName(place))}
         >
           <Icon name="link" />
         </button>

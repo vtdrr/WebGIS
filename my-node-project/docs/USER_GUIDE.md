@@ -2,7 +2,7 @@
 
 ## Bản đồ và tra cứu
 
-Mở `http://localhost:5173`. Tìm tên/mã địa điểm bằng ô tìm kiếm, chọn kết quả để xem chi tiết và đưa bản đồ tới vị trí. Bộ lọc danh mục giới hạn địa điểm hiển thị; điều khiển lớp bản đồ cho phép chuyển lớp nền/footprint. Ứng dụng không yêu cầu quyền GPS và không xác định vị trí thiết bị.
+Mở `http://localhost:5173`. Tìm tên/mã địa điểm bằng ô tìm kiếm, chọn kết quả để xem chi tiết và đưa bản đồ tới vị trí. Panel chi tiết hiển thị ảnh đã tải lên; nếu không có ảnh tải lên, ứng dụng dùng ảnh tham khảo theo mã địa điểm đã ánh xạ. Ảnh nhóm có thể đại diện cho nhiều tòa/khu vực, không khẳng định ảnh chụp chính xác từng địa điểm. Bộ lọc danh mục giới hạn địa điểm hiển thị; điều khiển lớp bản đồ cho phép chuyển lớp nền/footprint. Ứng dụng không yêu cầu quyền GPS và không xác định vị trí thiết bị.
 
 ## Chỉ đường
 

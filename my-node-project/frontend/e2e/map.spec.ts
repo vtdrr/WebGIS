@@ -32,9 +32,50 @@ test.describe('map', () => {
     await page.locator('.place-card').first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText('Mã địa điểm')).toBeVisible();
+    await expect(dialog.getByText('Mã địa điểm')).toHaveCount(0);
+    await expect(dialog.locator('.detail__item-label').filter({ hasText: 'Tầng' })).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Đóng' }).click();
     await expect(dialog).toBeHidden();
+  });
+
+  test('shows the library photograph without public OSM code or floor metadata', async ({ page }) => {
+    await page.getByRole('combobox').fill('thu vien');
+    await page.getByRole('option', { name: /Thư viện/ }).click();
+
+    const dialog = page.getByRole('dialog', { name: /Thư viện/ });
+    const photo = dialog.locator('img.detail__photo').first();
+    await expect(photo).toHaveAttribute('src', '/place-images/library.jpg');
+    await expect(photo).toBeVisible();
+    await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    await expect(dialog.getByText('Mã địa điểm')).toHaveCount(0);
+    await expect(dialog.getByText('LIB-MAIN')).toHaveCount(0);
+    await expect(dialog.locator('.detail__item-label').filter({ hasText: 'Tầng' })).toHaveCount(0);
+    const overflow = await dialog.locator('.detail__content').evaluate((element) => element.scrollWidth > element.clientWidth);
+    expect(overflow).toBe(false);
+  });
+
+  test('keeps the photograph inside the tablet detail panel and leaves content scrollable', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 900 });
+    await page.getByRole('combobox').fill('thu vien');
+    await page.getByRole('option', { name: /Thư viện/ }).click();
+
+    const dialog = page.getByRole('dialog', { name: /Thư viện/ });
+    const photo = dialog.locator('img.detail__photo').first();
+    await expect(photo).toHaveAttribute('src', '/place-images/library.jpg');
+    await expect(photo).toBeVisible();
+    const sizing = await dialog.evaluate((element) => {
+      const content = element.querySelector<HTMLElement>('.detail__content')!;
+      const image = element.querySelector<HTMLImageElement>('img.detail__photo')!;
+      return {
+        overflows: content.scrollWidth > content.clientWidth,
+        imageWidth: image.getBoundingClientRect().width,
+        contentWidth: content.clientWidth,
+        contentOverflowY: getComputedStyle(content).overflowY,
+      };
+    });
+    expect(sizing.overflows).toBe(false);
+    expect(sizing.imageWidth).toBeLessThanOrEqual(sizing.contentWidth);
+    expect(sizing.contentOverflowY).toBe('auto');
   });
 
   test('search ignores accents, and picking a result opens the place', async ({ page }) => {
@@ -125,47 +166,32 @@ test.describe('map', () => {
 
 });
 
-test.describe('narrow screen', () => {
-  test.use({ viewport: { width: 390, height: 780 } });
-
-  test('the place list is a drawer that closes after choosing a place', async ({ page }) => {
-    await page.goto('/');
-    const sidebar = page.getByRole('complementary', { name: 'Bản đồ khuôn viên trường' });
-    await expect(sidebar).not.toBeInViewport();
-
-    await page.getByRole('button', { name: 'Mở danh sách địa điểm' }).click();
-    await expect(sidebar).toBeInViewport();
-    await page.locator('.place-card').first().click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(sidebar).not.toBeInViewport();
-  });
-});
 test('does not access browser geolocation during normal map use', async ({ page }) => {
-    await page.addInitScript(() => {
-      const probe = window as Window & { __geoPropertyReads?: number; __geoRequests?: number };
-      probe.__geoPropertyReads = 0;
-      probe.__geoRequests = 0;
-      Object.defineProperty(navigator, 'geolocation', {
-        configurable: true,
-        get: () => {
-          probe.__geoPropertyReads!++;
-          return {
-            getCurrentPosition: () => { probe.__geoRequests!++; },
-            watchPosition: () => { probe.__geoRequests!++; return 1; },
-            clearWatch: () => undefined,
-          };
-        },
-      });
+  await page.addInitScript(() => {
+    const probe = window as Window & { __geoPropertyReads?: number; __geoRequests?: number };
+    probe.__geoPropertyReads = 0;
+    probe.__geoRequests = 0;
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      get: () => {
+        probe.__geoPropertyReads!++;
+        return {
+          getCurrentPosition: () => { probe.__geoRequests!++; },
+          watchPosition: () => { probe.__geoRequests!++; return 1; },
+          clearWatch: () => undefined,
+        };
+      },
     });
-    await page.goto('/');
-    await expect(page.locator('.place-card').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Vị trí của tôi' })).toHaveCount(0);
-    const accesses = await page.evaluate(() => ({
-      reads: (window as Window & { __geoPropertyReads?: number }).__geoPropertyReads,
-      requests: (window as Window & { __geoRequests?: number }).__geoRequests,
-    }));
-    expect(accesses).toEqual({ reads: 0, requests: 0 });
   });
+  await page.goto('/');
+  await expect(page.locator('.place-card').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Vị trí của tôi' })).toHaveCount(0);
+  const accesses = await page.evaluate(() => ({
+    reads: (window as Window & { __geoPropertyReads?: number }).__geoPropertyReads,
+    requests: (window as Window & { __geoRequests?: number }).__geoRequests,
+  }));
+  expect(accesses).toEqual({ reads: 0, requests: 0 });
+});
 
 test.describe('responsive Leaflet map controls', () => {
   for (const viewport of CONTROL_VIEWPORTS) {
@@ -292,4 +318,22 @@ test.describe('responsive Leaflet map controls', () => {
         .not.toBe(beforePan);
     });
   }
+});
+
+test.describe('narrow screen', () => {
+  test.use({ viewport: { width: 390, height: 780 } });
+
+  test('the place list is a drawer that closes after choosing a place', async ({ page }) => {
+    await page.goto('/');
+    const sidebar = page.getByRole('complementary', { name: 'Bản đồ khuôn viên trường' });
+    await expect(sidebar).not.toBeInViewport();
+
+    await page.getByRole('button', { name: 'Mở danh sách địa điểm' }).click();
+    await expect(sidebar).toBeInViewport();
+    await page.locator('.place-card').first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    expect(await dialog.locator('.detail__content').evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+    await expect(sidebar).not.toBeInViewport();
+  });
 });

@@ -56,8 +56,9 @@ Mở `http://localhost:5173`; health endpoint là `http://localhost:3000/health/
 
 - [ ] Trang mở tại bản đồ campus, sidebar hiển thị danh sách, bản đồ có dữ liệu điểm/footprint theo sample hoặc tập dữ liệu đã nạp.
 - [ ] Tìm `thư viện`; thử không dấu `thu vien`; chọn kết quả và xác nhận panel chi tiết xuất hiện, bản đồ di chuyển tới vị trí.
+- [ ] Kiểm tra ảnh thư viện tải trong panel, vừa chiều rộng; mã OSM và metadata tầng không hiện ở chi tiết công khai.
 - [ ] Lọc một danh mục (ví dụ thư viện), ghi nhận danh sách/lớp bản đồ thu hẹp; xóa filter và xác nhận dữ liệu trở lại.
-- [ ] Mở panel chi tiết, kiểm tra tên/danh mục và thông tin công khai.
+- [ ] Mở panel chi tiết, kiểm tra tên/danh mục/thông tin công khai; với địa điểm chưa ánh xạ ảnh, xác nhận trạng thái không có ảnh.
 - [ ] Chuyển Street/Satellite; kiểm tra attribution và chấp nhận tiles có thể không tải nếu mạng/provider lỗi.
 - [ ] Thử thu nhỏ viewport; danh sách chuyển thành drawer và map vẫn thao tác được.
 - [ ] Ở 1920×1080, 1366×768, 768×1024, 390×844 và 375×667, xác nhận Zoom In/Out không bị nút sơ đồ che; cả hai nút zoom và nút sơ đồ đều bấm được.

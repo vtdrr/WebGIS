@@ -2,7 +2,7 @@
 
 Ứng dụng WebGIS để tra cứu, quản lý và chỉ đường tới các địa điểm trong khuôn viên Trường Đại học Phenikaa. Hệ thống gồm giao diện React/Leaflet, API Fastify và cơ sở dữ liệu PostgreSQL/PostGIS.
 
-**Chức năng chính:** tìm kiếm có gợi ý bàn phím, lọc danh mục, xem footprint OSM, chỉ đường đi bộ giữa các địa điểm campus được chọn từ danh sách. Ứng dụng không đọc vị trí GPS của thiết bị. Giao diện quản trị hỗ trợ CRUD địa điểm và tải ảnh.
+**Chức năng chính:** tìm kiếm có gợi ý bàn phím, lọc danh mục, xem footprint OSM, xem ảnh địa điểm đã ánh xạ, chỉ đường đi bộ giữa các địa điểm campus được chọn từ danh sách. Ứng dụng không đọc vị trí GPS của thiết bị. Giao diện quản trị hỗ trợ CRUD địa điểm và tải ảnh.
 
 ## 🏗️ Kiến trúc
 
@@ -173,6 +173,8 @@ CI dùng PostGIS service riêng ở port 5433. Không chạy test nếu `TEST_DA
 - [Cơ sở dữ liệu và migration](my-node-project/docs/DATABASE.md)
 - [Tài liệu API](my-node-project/docs/API.md)
 - [Hướng dẫn sử dụng](my-node-project/docs/USER_GUIDE.md)
+- [Ánh xạ ảnh địa điểm](my-node-project/docs/PLACE_IMAGE_MAPPING.md)
+- [Dữ liệu GIS campus](my-node-project/docs/CAMPUS_GIS_DATA.md)
 - [Thiết lập phát triển](my-node-project/docs/DEVELOPMENT.md)
 - [Chiến lược và kết quả kiểm thử](my-node-project/docs/TESTING.md)
 - [Hạn chế đã biết](my-node-project/docs/LIMITATIONS.md)

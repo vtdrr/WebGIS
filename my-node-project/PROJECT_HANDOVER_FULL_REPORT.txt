@@ -26,7 +26,7 @@ Phenikaa WebGIS là ứng dụng web tra cứu địa điểm trong khuôn viên
 
 Kiến trúc: SPA React/TypeScript + Leaflet, API Fastify/TypeScript, PostgreSQL 16/PostGIS 3.4. Frontend gọi HTTP JSON/GeoJSON qua `/api`; backend truy vấn DB bằng `pg`; ảnh lưu thư mục tĩnh; tile/imagery tải từ bên ngoài. OSM/Overpass được truy cập bởi script import, không phải lúc người dùng tìm route.
 
-Source hiện có map, search/filter, place details, CRUD admin, point/polygon editor, upload PNG/JPEG/WebP, API, PostGIS search, Dijkstra routing, dữ liệu gate/transfer/walkway và importer OSM. Có bộ dịch VI/EN nhưng README ghi UI hiện chỉ hỗ trợ tiếng Việt.
+Source hiện có map, search/filter, place details kèm ảnh upload/ảnh campus ánh xạ, CRUD admin, point/polygon editor, upload PNG/JPEG/WebP, API, PostGIS search, Dijkstra routing, dữ liệu gate/transfer/walkway và importer OSM. UI công khai ẩn mã/tầng trong panel chi tiết; origin chỉ chọn từ danh sách place, ứng dụng không truy cập vị trí GPS. Backend API routing vẫn nhận tọa độ. Ảnh tham khảo và GeoJSON GIS workspace được theo dõi; xem `docs/PLACE_IMAGE_MAPPING.md` và `docs/CAMPUS_GIS_DATA.md`. Có bộ dịch VI/EN nhưng README ghi UI hiện chỉ hỗ trợ tiếng Việt.
 
 `docs/TESTING.md` ghi kết quả 21-10-2026: backend 14 files/151 tests, frontend 11 files/89 tests, Playwright Chromium 9/9; typecheck/lint/build hai phía và migrations baseline+0001..0003 pass. Kết quả này là lịch sử được báo cáo, chưa chạy lại trong lượt rà soát. E2E dùng sample DB, không chứng minh OSM outdoor graph đã nạp hay tuyến đúng ngoài thực địa.
 
@@ -105,8 +105,8 @@ Không thấy microservice/message queue. Frontend đảm nhiệm render, tươn
 Mở app: `main.tsx` → `App.tsx`, components/store gọi `services/api.ts`; Vite proxy `/api`; cần backend/DB và tile network.
 Places: UI → GET `/api/places` / GeoJSON → routes → PlacesService → `pg` → PostGIS → JSON/GeoJSON → card/layer.
 Search: SearchBar/store → `/api/places/search` → parseSearch + full-text/trigram SQL → ranked result; request IDs ngăn response cũ cập nhật state theo docs, không hủy mạng.
-Details: chọn card/marker hiển thị detail; endpoint `GET /api/places/:id` tồn tại. Không khẳng định luôn fetch riêng vì có thể dùng record đã tải.
-Route: chọn tọa độ → `/api/routing?from=lat,lng&to=lat,lng` → validate → graph/cache/snap/Dijkstra → ghép LineString/steps/meta → `RoutingLayer`.
+Details: chọn card/marker hiển thị detail; endpoint `GET /api/places/:id` tồn tại. Sidebar công khai dùng ảnh upload gắn với place hoặc ảnh campus đã ánh xạ tường minh theo `code`; không hiện mã place/OSM hay trường `floor`. Thông tin code/floor vẫn giữ trong API, thẻ/tìm kiếm và admin khi cần. Không khẳng định luôn fetch detail riêng vì UI có thể dùng record đã tải.
+Route: UI chọn origin và destination từ địa điểm có tọa độ; không dùng geolocation và click map không đặt origin. Request đi tới `/api/routing?from=lat,lng&to=lat,lng` → validate → graph/cache/snap/Dijkstra → ghép LineString/steps/meta → `RoutingLayer`. Backend API vẫn nhận tọa độ cho các caller khác, không đổi.
 Admin: admin UI → adminApi với `x-admin-key` → Fastify auth (khi key cấu hình) → PlacesService → validate/transaction PostGIS.
 Polygon: map click/drag → GeoJSON [lng,lat] → API → WKT/PostGIS validity → lưu/rollback; E2E lưu và invalid polygon được ghi nhận.
 Upload: multipart → byte signature + MIME + size → UUID file trong UPLOAD_DIR → URL → lưu URL vào `images` JSONB. File và DB không chung transaction.
@@ -122,7 +122,7 @@ my-node-project/
 |-- frontend/src/{components,services,store,hooks,i18n,styles,types}/
 |-- frontend/e2e/{map,admin}.spec.ts
 |-- data/places.example.csv
-|-- docs/ architecture/API/DB/testing/limits/development/demo
+|-- docs/ architecture/API/DB/testing/limits/development/demo/image mapping
 |-- docker-compose.yml, docker-compose.test.yml
 `-- package-lock.json (có thêm lockfiles package-level)
 
@@ -137,10 +137,10 @@ Nhãn:
 [ĐÃ TRIỂN KHAI - CHƯA KIỂM CHỨNG ĐẦY ĐỦ] source tồn tại, xác nhận vận hành hạn chế.
 [HOÀN THÀNH MỘT PHẦN], [CHƯA TRIỂN KHAI], [CẦN KIỂM TRA THÊM], [KHÔNG ĐỦ BẰNG CHỨNG].
 
-A. Bản đồ: Leaflet/tile/layer buildings [ĐÃ TRIỂN KHAI - CHƯA KIỂM CHỨNG ĐẦY ĐỦ]; `Map/BaseMap.tsx`, BuildingsLayer, MapOverlays. E2E mở map; footprint phụ thuộc dataset. GPS/đặt điểm [CẦN KIỂM TRA THÊM], `useGeolocation.ts`, browser permission. Sơ đồ campus ảnh tham khảo chỉ không gian minh họa, không georeference.
+A. Bản đồ: Leaflet/tile/layer buildings [ĐÃ TRIỂN KHAI - CHƯA KIỂM CHỨNG ĐẦY ĐỦ]; `Map/BaseMap.tsx`, BuildingsLayer, MapOverlays. E2E mở map; footprint phụ thuộc dataset. Không có chức năng lấy vị trí GPS; map click vẫn dùng cho xem place và admin geometry theo ngữ cảnh. Sơ đồ campus ảnh tham khảo chỉ không gian minh họa, không georeference.
 B. Search/filter: không dấu, typo tolerance, ranking [TEST ĐÃ GHI NHẬN], `places/search.ts`, PlacesService, SearchBar; test backend/frontend/E2E. Category filter [TEST ĐÃ GHI NHẬN]. Bbox/floor/has_polygon/sort API có, mức dùng UI cần đối chiếu.
-C. Place info: list/card/detail [E2E ĐÃ GHI NHẬN]; `places.routes.ts/service.ts`, PlaceCard/PlaceDetailPanel. Nearby/GeoJSON endpoint đã implement, UI sử dụng thực tế chưa xác nhận.
-D. Routing: walk-only [TEST ĐÃ GHI NHẬN trên sample DB]. Dijkstra/route geometry/steps, fallback, connector; xe đạp/xe lăn [CHƯA TRIỂN KHAI] vì mode chỉ walk và không có dữ liệu bảo đảm.
+C. Place info: list/card/detail [E2E ĐÃ GHI NHẬN]; `places.routes.ts/service.ts`, PlaceCard/PlaceDetailPanel. Sidebar hiện giấu code/floor công khai và dùng ảnh upload hoặc code map; các ảnh nhóm là tham khảo chung, chưa field-verified. Nearby/GeoJSON endpoint đã implement, UI sử dụng thực tế chưa xác nhận.
+D. Routing: walk-only [TEST ĐÃ GHI NHẬN trên sample DB]. Frontend chọn cả origin/destination từ place dropdown; không dùng GPS và không có origin tùy ý từ map click. API backend/graph/Dijkstra/fallback vẫn giữ nguyên. Xe đạp/xe lăn [CHƯA TRIỂN KHAI] vì mode chỉ walk và không có dữ liệu bảo đảm.
 E. Gate/transfer: JSON khai báo cổng, access, transfer hubs, corridor [ĐÃ TRIỂN KHAI - CHƯA KIỂM CHỨNG ĐẦY ĐỦ]; test được ghi nhận, chưa field validation.
 F. OSM: importer places/paths [ĐÃ TRIỂN KHAI - CHƯA KIỂM CHỨNG ĐẦY ĐỦ], không chạy mạng; graph live [CHƯA XÁC MINH].
 G. Admin: verify key/CRUD [TEST ĐÃ GHI NHẬN]. Nếu ADMIN_API_KEY không đặt, auth hook bỏ qua; production phải khóa.
@@ -154,9 +154,9 @@ L. Infra: Compose, migrations, Vitest, Playwright, CI workflow [ĐÃ TRIỂN KHA
 ------------------------------------------------------------
 Entry `frontend/src/main.tsx`, `App.tsx`; store Zustand ở `store/useStore.ts`; API client ở services; Map, UI, Routing, Admin components. React-Leaflet bọc Leaflet. Data contract trong `types/`. Chú ý chuyển đổi Leaflet [lat,lng] ↔ GeoJSON [lng,lat].
 
-SearchBar, CategoryFilter, PlaceCard/PlaceDetailPanel; RoutePanel điều khiển origin/destination, state và API; RoutingLayer vẽ LineString; GeometryEditor sửa vị trí. Admin key lưu sessionStorage `webgis.adminKey`; không coi đây là kho an toàn nếu trang bị XSS.
+SearchBar, CategoryFilter, PlaceCard/PlaceDetailPanel; RoutePanel điều khiển origin/destination bằng place dropdown, state và API; RoutingLayer vẽ LineString; GeometryEditor sửa vị trí. Frontend không đọc tọa độ thiết bị/GPS. Detail ảnh co giãn theo tỉ lệ gốc; mã/tầng không được trình bày tại sidebar công khai. Admin key lưu sessionStorage `webgis.adminKey`; không coi đây là kho an toàn nếu trang bị XSS.
 
-Tests component/store và E2E đã có. Race guard bỏ response stale nhưng không AbortController; UI với outage thực chưa E2E đủ. Cần kiểm thử thao tác bàn phím, tablet/mobile/browser bổ sung, tile lỗi và GPS denied.
+Tests component/store và E2E đã có. Race guard bỏ response stale nhưng không AbortController; UI với outage thực chưa E2E đủ. Cần kiểm thử thao tác bàn phím, tablet/mobile/browser bổ sung và tile lỗi. Không còn luồng quyền GPS để kiểm thử.
 
 9. PHÂN TÍCH BACKEND VÀ API
 ------------------------------------------------------------
@@ -247,6 +247,8 @@ KẾT QUẢ ĐƯỢC BÁO CÁO TRƯỚC ĐÂY — CHƯA CHẠY LẠI TRONG LẦN
 
 E2E route dùng sample DB, docs ghi 10 places, 11 legacy paths, 0 OSM nodes/edges. Một số UI/store tests dùng mocks; JSON test kiểm consistency chứ không khảo sát. Chưa có coverage %, benchmark, field tests, production test hay outage E2E đầy đủ.
 
+Xác minh tiếp nối commit `ef976eb` ngày 2026-10-22: backend typecheck/lint/build pass; integration **14 files/151 tests pass** trên PostGIS test service riêng; frontend typecheck/lint/build pass; Vitest **12 files/94 tests pass**; Playwright **17/17 Chromium E2E pass** trên E2E database riêng. Đã xác nhận ảnh detail, code/tầng ẩn, không đọc Geolocation API, map click không đặt origin, place routing, zoom/pan/sơ đồ và bounding boxes ở năm viewport. Admin/GeometryEditor/upload cũng pass. Playwright dùng config tạm ngoài repository ở cổng frontend 5174/backend 3100, ảnh upload test lưu trong thư mục tạm; test DB service đã dừng, volume test được giữ, database phát triển không bị nhắm tới. Không sinh screenshot khi toàn bộ E2E pass.
+
 14. HẠ TẦNG, CẤU HÌNH VÀ TRIỂN KHAI
 ------------------------------------------------------------
 `docker-compose.yml`: PostGIS 16-3.4, DB port 5432, persistent volume và init SQL lần đầu; pgAdmin tùy chọn. Compose có credentials mặc định local, không dùng public/prod. `docker-compose.test.yml` bind 127.0.0.1:5433, project/volume test riêng. Không dùng `docker compose down -v` hay volume prune.
@@ -303,7 +305,7 @@ P1-3 — Routing scenarios: cổng-công trình, route ghép transfer, disconnec
 P1-4 — Field validation có phê duyệt: vị trí entrance/path/access restrictions, ghi nguồn/ngày và verified/unverified; không sửa dữ liệu theo ảnh không georeference. Lớn; khảo sát.
 P1-5 — Enforce production admin key at startup; config/auth tests. Vừa; cần chính sách bảo mật.
 
-P2-1 — Manual desktop/mobile/browser UX (keyboard, GPS denied, errors, fallback, editor); checklist + defect fixes. Vừa.
+P2-1 — Manual desktop/mobile/browser UX (keyboard, errors, fallback, editor); checklist + defect fixes. Vừa.
 P2-2 — Test API/DB outage thực trên environment test, bổ sung E2E retry. Vừa.
 P2-3 — Storage persistence/backup and image ownership/retention; không auto-delete trước policy. Vừa.
 P2-4 — Đồng bộ README, API, limitation, scripts và test result hiện hành. Nhỏ.
