@@ -9,8 +9,8 @@ import { TEST_DATABASE_URL, adminDatabaseUrl, databaseName } from './helpers/tes
  */
 export default async function setup(): Promise<void> {
   const dbName = databaseName();
-  if (!/^[\w]+$/.test(dbName) || !dbName.includes('test')) {
-    throw new Error(`Refusing to reset database "${dbName}": the test database name must contain "test"`);
+  if (dbName !== 'phenikaa_gis_test') {
+    throw new Error(`Refusing to reset database "${dbName}": expected the isolated phenikaa_gis_test database`);
   }
 
   const admin = new pg.Client({ connectionString: adminDatabaseUrl() });

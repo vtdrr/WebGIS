@@ -1,0 +1,22 @@
+name: phenikaa-webgis-test
+
+services:
+  db-test:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${WEBGIS_TEST_POSTGRES_PASSWORD:?Set WEBGIS_TEST_POSTGRES_PASSWORD in the test env file}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - test-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  test-pgdata:
+    name: phenikaa-webgis-test-pgdata
