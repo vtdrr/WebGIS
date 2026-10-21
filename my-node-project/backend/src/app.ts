@@ -150,8 +150,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 function registerShutdown(app: FastifyInstance): void {
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, 'Shutting down...');
-    await closePool();
     await app.close();
+    await closePool();
     process.exit(0);
   };
 
