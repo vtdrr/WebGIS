@@ -1,0 +1,832 @@
+{
+  "type": "CampusTransferNetwork",
+  "name": "phenikaa-transfer-routes",
+  "transfer_points": [
+    {
+      "node_id": "building-a1-access",
+      "name_vi": "A1",
+      "place_code": "OSM-W-1113215768",
+      "level": 1
+    },
+    {
+      "node_id": "building-a2-access",
+      "name_vi": "A2",
+      "place_code": "OSM-W-1183713531",
+      "level": 1
+    },
+    {
+      "node_id": "building-a7-access",
+      "name_vi": "A7",
+      "place_code": "OSM-W-1183713522",
+      "level": 1
+    },
+    {
+      "node_id": "building-a8-access",
+      "name_vi": "A8",
+      "place_code": "OSM-W-1183713534",
+      "level": 1
+    },
+    {
+      "node_id": "building-b2-access",
+      "name_vi": "B2",
+      "place_code": "OSM-W-1183713526",
+      "level": 1
+    }
+  ],
+  "routes": [
+    {
+      "route_id": "transfer-a1-building-a3-access",
+      "name_vi": "từ A1 đến A3",
+      "hub_node": "building-a1-access",
+      "from_node": "building-a1-access",
+      "to_node": "building-a3-access",
+      "coordinates": [
+        [
+          105.74710508,
+          20.96134823
+        ],
+        [
+          105.7469146,
+          20.96109025
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a1-building-a5-access",
+      "name_vi": "từ A1 đến A5",
+      "hub_node": "building-a1-access",
+      "from_node": "building-a1-access",
+      "to_node": "building-a5-access",
+      "coordinates": [
+        [
+          105.74710508,
+          20.96134823
+        ],
+        [
+          105.74671071,
+          20.96080221
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a1-building-a7-access",
+      "name_vi": "từ A1 đến A7",
+      "hub_node": "building-a1-access",
+      "from_node": "building-a1-access",
+      "to_node": "building-a7-access",
+      "coordinates": [
+        [
+          105.74710508,
+          20.96134823
+        ],
+        [
+          105.74651219,
+          20.96053671
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a1-parking-4-access",
+      "name_vi": "từ A1 đến bãi giữ xe 4",
+      "hub_node": "building-a1-access",
+      "from_node": "building-a1-access",
+      "to_node": "parking-4-access",
+      "coordinates": [
+        [
+          105.74710508,
+          20.96134823
+        ],
+        [
+          105.74717805,
+          20.96129935
+        ],
+        [
+          105.74750839,
+          20.96173832
+        ],
+        [
+          105.74724816,
+          20.96193995
+        ],
+        [
+          105.74747754,
+          20.96209649
+        ],
+        [
+          105.74755785,
+          20.96203763
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a1-building-a2-access",
+      "name_vi": "từ A1 đến A2",
+      "hub_node": "building-a1-access",
+      "from_node": "building-a1-access",
+      "to_node": "building-a2-access",
+      "coordinates": [
+        [
+          105.74710508,
+          20.96134823
+        ],
+        [
+          105.74756383,
+          20.96105017
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-building-a4-access",
+      "name_vi": "từ A2 tới A4",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "building-a4-access",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74736262,
+          20.96076964
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-building-a6-access",
+      "name_vi": "từ A2 tới A6",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "building-a6-access",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.7471802,
+          20.96050665
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-building-a8-access",
+      "name_vi": "từ A2 tới A8",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "building-a8-access",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74698972,
+          20.96022612
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-sports-hall-entry-1",
+      "name_vi": "từ A2 tới nhà thi đấu",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "sports-hall-entry-1",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74743449,
+          20.96112717
+        ],
+        [
+          105.74778325,
+          20.96162811
+        ],
+        [
+          105.74805016,
+          20.96200382
+        ],
+        [
+          105.74831441,
+          20.96221421
+        ],
+        [
+          105.74836563,
+          20.96213471
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-dorm-1-entry-2",
+      "name_vi": "từ A2 tới kí túc xá 1",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "dorm-1-entry-2",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74807029,
+          20.96070012
+        ],
+        [
+          105.74819102,
+          20.96084038
+        ],
+        [
+          105.74840296,
+          20.96069386
+        ],
+        [
+          105.74836088,
+          20.96062187
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-canteen-3-sao",
+      "name_vi": "từ A2 tới căng tin 3 sao",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "canteen-3-sao",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74807029,
+          20.96070012
+        ],
+        [
+          105.74819102,
+          20.96084038
+        ],
+        [
+          105.74840296,
+          20.96069386
+        ],
+        [
+          105.74865112,
+          20.96054232
+        ],
+        [
+          105.74863989,
+          20.96051667
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-parking-1-entry-2",
+      "name_vi": "từ A2 tới bãi giữ xe 1",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "parking-1-entry-2",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74807029,
+          20.96070012
+        ],
+        [
+          105.74819102,
+          20.96084038
+        ],
+        [
+          105.74847929,
+          20.96064725
+        ],
+        [
+          105.74851112,
+          20.96069701
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-canteen-d6-access",
+      "name_vi": "từ A2 tới nhà ăn D6",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "canteen-d6-access",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74743449,
+          20.96112717
+        ],
+        [
+          105.74778325,
+          20.96162811
+        ],
+        [
+          105.74805016,
+          20.96200382
+        ],
+        [
+          105.74843114,
+          20.9623933
+        ],
+        [
+          105.74863659,
+          20.96252794
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-parking-3-access",
+      "name_vi": "từ A2 tới bãi giữ xe 3",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "parking-3-access",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74807029,
+          20.96070012
+        ],
+        [
+          105.74819102,
+          20.96084038
+        ],
+        [
+          105.7484285,
+          20.9611422
+        ],
+        [
+          105.74894761,
+          20.96080782
+        ],
+        [
+          105.74900395,
+          20.96089048
+        ],
+        [
+          105.74906046,
+          20.96086232
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-football-field-entry",
+      "name_vi": "từ A2 tới sân bóng",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "football-field-entry",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74807029,
+          20.96070012
+        ],
+        [
+          105.7484285,
+          20.9611422
+        ],
+        [
+          105.74894761,
+          20.96080782
+        ],
+        [
+          105.74902791,
+          20.96092805
+        ],
+        [
+          105.74898289,
+          20.96096251
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a2-tennis-court-access",
+      "name_vi": "từ A2 tới sân tennis",
+      "hub_node": "building-a2-access",
+      "from_node": "building-a2-access",
+      "to_node": "tennis-court-access",
+      "coordinates": [
+        [
+          105.74756383,
+          20.96105017
+        ],
+        [
+          105.74807029,
+          20.96070012
+        ],
+        [
+          105.7484285,
+          20.9611422
+        ],
+        [
+          105.74900246,
+          20.96193118
+        ],
+        [
+          105.74917147,
+          20.96182849
+        ],
+        [
+          105.74919276,
+          20.96185479
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a7-building-a9-access",
+      "name_vi": "từ A7 đến A9",
+      "hub_node": "building-a7-access",
+      "from_node": "building-a7-access",
+      "to_node": "building-a9-access",
+      "coordinates": [
+        [
+          105.74651219,
+          20.96053671
+        ],
+        [
+          105.74638342,
+          20.96017352
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a7-building-a10-access",
+      "name_vi": "từ A7 đến A10",
+      "hub_node": "building-a7-access",
+      "from_node": "building-a7-access",
+      "to_node": "building-a10-access",
+      "coordinates": [
+        [
+          105.74651219,
+          20.96053671
+        ],
+        [
+          105.74638342,
+          20.96017352
+        ],
+        [
+          105.74674291,
+          20.95993307
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a7-building-a5-access",
+      "name_vi": "từ A7 đến A5",
+      "hub_node": "building-a7-access",
+      "from_node": "building-a7-access",
+      "to_node": "building-a5-access",
+      "coordinates": [
+        [
+          105.74651219,
+          20.96053671
+        ],
+        [
+          105.74671071,
+          20.96080221
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a7-building-a3-access",
+      "name_vi": "từ A7 đến A3",
+      "hub_node": "building-a7-access",
+      "from_node": "building-a7-access",
+      "to_node": "building-a3-access",
+      "coordinates": [
+        [
+          105.74651219,
+          20.96053671
+        ],
+        [
+          105.7469146,
+          20.96109025
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a7-building-b2-access",
+      "name_vi": "từ A7 đến B2",
+      "hub_node": "building-a7-access",
+      "from_node": "building-a7-access",
+      "to_node": "building-b2-access",
+      "coordinates": [
+        [
+          105.74651219,
+          20.96053671
+        ],
+        [
+          105.74608607,
+          20.96078975
+        ],
+        [
+          105.74612798,
+          20.960846
+        ],
+        [
+          105.7459786,
+          20.96094998
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a7-building-b1-access",
+      "name_vi": "từ A7 đến B1",
+      "hub_node": "building-a7-access",
+      "from_node": "building-a7-access",
+      "to_node": "building-b1-access",
+      "coordinates": [
+        [
+          105.74651219,
+          20.96053671
+        ],
+        [
+          105.74605986,
+          20.96080532
+        ],
+        [
+          105.74625838,
+          20.96108459
+        ],
+        [
+          105.74613419,
+          20.96115036
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-building-a10-access",
+      "name_vi": "từ A8 đến A10",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "building-a10-access",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74674291,
+          20.95993307
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-building-a9-access",
+      "name_vi": "từ A8 đến A9",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "building-a9-access",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74674291,
+          20.95993307
+        ],
+        [
+          105.74638342,
+          20.96017352
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-building-a7-access",
+      "name_vi": "từ A8 đến A7",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "building-a7-access",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74651219,
+          20.96053671
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-building-a6-access",
+      "name_vi": "từ A8 đến A6",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "building-a6-access",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.7471802,
+          20.96050665
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-building-a4-access",
+      "name_vi": "từ A8 đến A4",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "building-a4-access",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74736262,
+          20.96076964
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-dorm-3-entry-2",
+      "name_vi": "từ A8 tới kí túc xá 1",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "dorm-3-entry-2",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74752316,
+          20.95987356
+        ],
+        [
+          105.74742122,
+          20.95971827
+        ],
+        [
+          105.74761437,
+          20.95959804
+        ],
+        [
+          105.747658,
+          20.95966506
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-health-center-access",
+      "name_vi": "từ A8 tới trạm y tế",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "health-center-access",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74752316,
+          20.95987356
+        ],
+        [
+          105.74742122,
+          20.95971827
+        ],
+        [
+          105.74761437,
+          20.95959804
+        ],
+        [
+          105.74757981,
+          20.95956487
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-parking-2-access",
+      "name_vi": "từ A8 tới bãi giữ xe 2",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "parking-2-access",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74752316,
+          20.95987356
+        ],
+        [
+          105.74721828,
+          20.95943584
+        ],
+        [
+          105.74712058,
+          20.95949785
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-a8-dorm-1-entry-1",
+      "name_vi": "từ A8 tới kí túc xá 1",
+      "hub_node": "building-a8-access",
+      "from_node": "building-a8-access",
+      "to_node": "dorm-1-entry-1",
+      "coordinates": [
+        [
+          105.74698972,
+          20.96022612
+        ],
+        [
+          105.74752316,
+          20.95987356
+        ],
+        [
+          105.74770012,
+          20.96011777
+        ],
+        [
+          105.74789731,
+          20.9600013
+        ],
+        [
+          105.7479531,
+          20.96007584
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-b2-building-b3-access",
+      "name_vi": "từ B2 đến B3",
+      "hub_node": "building-b2-access",
+      "from_node": "building-b2-access",
+      "to_node": "building-b3-access",
+      "coordinates": [
+        [
+          105.7459786,
+          20.96094998
+        ],
+        [
+          105.74581226,
+          20.96071204
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-b2-building-b4-access",
+      "name_vi": "từ B2 đến B4",
+      "hub_node": "building-b2-access",
+      "from_node": "building-b2-access",
+      "to_node": "building-b4-access",
+      "coordinates": [
+        [
+          105.7459786,
+          20.96094998
+        ],
+        [
+          105.74565935,
+          20.96052168
+        ]
+      ]
+    },
+    {
+      "route_id": "transfer-b2-building-b1-access",
+      "name_vi": "từ B2 đến B1",
+      "hub_node": "building-b2-access",
+      "from_node": "building-b2-access",
+      "to_node": "building-b1-access",
+      "coordinates": [
+        [
+          105.7459786,
+          20.96094998
+        ],
+        [
+          105.74610966,
+          20.96086793
+        ],
+        [
+          105.74625051,
+          20.96106706
+        ],
+        [
+          105.74613419,
+          20.96115036
+        ]
+      ]
+    }
+  ]
+}

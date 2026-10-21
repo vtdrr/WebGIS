@@ -101,6 +101,45 @@ describe('GET /api/routing', () => {
     await insertPath('R-A', 'R-B');
     await insertPath('R-B', 'R-C');
   });
+
+  it('returns an explicitly marked straight-line fallback for disconnected graph components', async () => {
+    await resetData();
+    const firstComponent = [
+      { code: 'ISO-A', name_vi: 'Cụm 1-A', lng: 105.748, lat: 20.962 },
+      { code: 'ISO-B', name_vi: 'Cụm 1-B', lng: 105.7486, lat: 20.9622 },
+      { code: 'ISO-C', name_vi: 'Cụm 1-C', lng: 105.749, lat: 20.9624 },
+    ];
+    const secondComponent = [
+      { code: 'ISO-X', name_vi: 'Cụm 2-X', lng: 105.755, lat: 20.962 },
+      { code: 'ISO-Y', name_vi: 'Cụm 2-Y', lng: 105.7556, lat: 20.9622 },
+      { code: 'ISO-Z', name_vi: 'Cụm 2-Z', lng: 105.756, lat: 20.9624 },
+    ];
+    try {
+      for (const place of [...firstComponent, ...secondComponent]) await insertPlace(place);
+      await insertPath('ISO-A', 'ISO-B');
+      await insertPath('ISO-B', 'ISO-C');
+      await insertPath('ISO-X', 'ISO-Y');
+      await insertPath('ISO-Y', 'ISO-Z');
+
+      const from = { lat: firstComponent[0].lat, lng: firstComponent[0].lng };
+      const to = { lat: secondComponent[0].lat, lng: secondComponent[0].lng };
+      const { status, body } = await route(from, to);
+
+      expect(status).toBe(200);
+      expect(body.meta.fallback).toBe(true);
+      expect(body.routes[0].geometry.coordinates).toEqual([
+        [from.lng, from.lat],
+        [to.lng, to.lat],
+      ]);
+    } finally {
+      await resetData();
+      await insertPlace({ code: 'R-A', name_vi: 'Điểm A', lng: A.lng, lat: A.lat });
+      await insertPlace({ code: 'R-B', name_vi: 'Điểm B', lng: B.lng, lat: B.lat });
+      await insertPlace({ code: 'R-C', name_vi: 'Điểm C', lng: C.lng, lat: C.lat });
+      await insertPath('R-A', 'R-B');
+      await insertPath('R-B', 'R-C');
+    }
+  });
 });
 
 describe('routing from outside the campus', () => {
