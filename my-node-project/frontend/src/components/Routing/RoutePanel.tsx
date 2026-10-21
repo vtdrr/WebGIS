@@ -4,20 +4,13 @@ import { useStore } from '../../store/useStore';
 import { useT } from '../../i18n/useT';
 import { formatDistance, formatDuration } from '../../utils/format';
 import { Icon } from '../UI';
-const GPS_ORIGIN = '__gps__';
-const MAP_ORIGIN = '__map__';
-
-interface RoutePanelProps {
-  /** Current GPS fix, if any */
-  gpsPosition: { lat: number; lng: number } | null;
-}
 
 /** Directions panel: origin picker, travel mode, summary and turn list. */
-export function RoutePanel({ gpsPosition }: RoutePanelProps) {
+export function RoutePanel() {
   const { t, placeName } = useT();
   const {
     routePlaces, routePlacesLoading, routePlacesError, fetchRoutePlaces, routingFrom, routingTo, routingResult, routingLoading, routingError,
-    setRoutingOrigin, routePicking, setRoutePicking, swapRouting, clearRouting,
+    setRoutingOrigin, swapRouting, clearRouting,
   } = useStore(
     useShallow((s) => ({
       routePlaces: s.routePlaces,
@@ -30,8 +23,6 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
       routingLoading: s.routingLoading,
       routingError: s.routingError,
       setRoutingOrigin: s.setRoutingOrigin,
-      routePicking: s.routePicking,
-      setRoutePicking: s.setRoutePicking,
       swapRouting: s.swapRouting,
       clearRouting: s.clearRouting,
     })),
@@ -44,8 +35,7 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
 
   if (!(routingResult || routingLoading || routingError || routingTo)) return null;
 
-  const originValue =
-    routingFrom?.placeId ?? (routingFrom?.source === 'map' ? MAP_ORIGIN : routingFrom ? GPS_ORIGIN : '');
+  const originValue = routingFrom?.placeId ?? '';
   const canSwap = Boolean(routingFrom?.placeId && routingTo);
   const route = routingResult?.routes?.[0];
   const steps = route?.legs?.[0]?.steps;
@@ -53,11 +43,7 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
 
   const handleOriginChange = (value: string) => {
     if (!value) setRoutingOrigin(null);
-    else if (value === GPS_ORIGIN) {
-      if (gpsPosition) setRoutingOrigin({ ...gpsPosition, name: t('map.myLocation'), source: 'gps' });
-    } else if (value === MAP_ORIGIN) {
-      // Already picked on the map: nothing to change
-    } else {
+    else {
       const place = routePlaces.find((p) => p.id === value);
       if (place) setRoutingOrigin(place);
     }
@@ -86,26 +72,12 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
             <select value={originValue} onChange={(e) => handleOriginChange(e.target.value)} aria-label={t('route.from')}>
               <option value="">{t('route.chooseOrigin')}</option>
               {routePlacesLoading && <option value="__loading__" disabled>{t('route.originsLoading')}</option>}
-              {routingFrom?.source === 'map' && <option value={MAP_ORIGIN}>{t('route.originPicked')}</option>}
-              <option value={GPS_ORIGIN} disabled={!gpsPosition}>
-                {gpsPosition ? t('map.myLocation') : t('route.noGps')}
-              </option>
               {originOptions.map((p) => (
                 <option key={p.id} value={p.id}>
                   {placeName(p)}
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              className={`icon-button icon-button--small${routePicking ? ' is-active' : ''}`}
-              onClick={() => setRoutePicking(!routePicking)}
-              title={t('route.pickOnMap')}
-              aria-label={t('route.pickOnMap')}
-              aria-pressed={routePicking}
-            >
-              <Icon name="pin" size={14} />
-            </button>
             <button
               type="button"
               className="icon-button icon-button--small"

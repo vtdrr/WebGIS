@@ -18,8 +18,6 @@ export interface RoutePoint {
   name: string;
   /** Set when the point comes from a place (enables swapping origin/destination) */
   placeId?: string;
-  /** Where the point came from: GPS fix, a click on the map, or a known place */
-  source?: 'gps' | 'map' | 'place';
 }
 
 interface AppState {
@@ -95,18 +93,14 @@ interface AppState {
   routingResult: RoutingResponse | null;
   routingLoading: boolean;
   routingError: string | null;
-  setRoutingFrom: (point: RoutePoint | null) => void;
-  setRoutingOrigin: (origin: Place | { lat: number; lng: number; name: string; source?: RoutePoint['source'] } | null) => Promise<void>;
-  /** True while the user is choosing the route origin by clicking on the map */
-  routePicking: boolean;
-  setRoutePicking: (picking: boolean) => void;
+  setRoutingOrigin: (origin: Place | null) => Promise<void>;
   swapRouting: () => Promise<void>;
   setRoutingTo: (place: Place | null) => void;
   fetchRoute: (
     from: { lat: number; lng: number; name: string },
     to: { lat: number; lng: number; name: string },
   ) => Promise<void>;
-  startRoutingTo: (place: Place, userPosition?: { lat: number; lng: number } | null) => Promise<void>;
+  startRoutingTo: (place: Place) => Promise<void>;
   clearRouting: () => void;
 }
 
@@ -313,9 +307,6 @@ export const useStore = create<AppState>()(
     routingResult: null,
     routingLoading: false,
     routingError: null,
-    setRoutingFrom: (point) => set({ routingFrom: point }),
-    routePicking: false,
-    setRoutePicking: (picking) => set({ routePicking: picking }),
     setRoutingTo: (place) => {
       routingRequestId++;
       set({ routingTo: place, routingResult: null, routingError: null, routingLoading: false });
@@ -326,8 +317,8 @@ export const useStore = create<AppState>()(
         set({ routingFrom: null, routingResult: null, routingError: null, routingLoading: false });
         return;
       }
-      const from: RoutePoint = 'name_vi' in origin ? placeToRoutePoint(origin) : origin;
-      set({ routingFrom: from, routingError: null, routePicking: false });
+      const from = placeToRoutePoint(origin);
+      set({ routingFrom: from, routingError: null });
       const { routingTo } = get();
       if (routingTo) await get().fetchRoute(from, placeToRoutePoint(routingTo));
     },
@@ -343,26 +334,19 @@ export const useStore = create<AppState>()(
     fetchRoute: async (from, to) => {
       await fetchRouteImpl(set, get, from, to);
     },
-    startRoutingTo: async (place, userPosition) => {
+    startRoutingTo: async (place) => {
       routingRequestId++;
-      // Without a GPS fix the user must pick an origin explicitly
-      const from: RoutePoint | null = userPosition
-        ? { lat: userPosition.lat, lng: userPosition.lng, name: translate(get().lang, 'map.myLocation'), source: 'gps' }
-        : null;
       set({
-        routingFrom: from,
+        routingFrom: null,
         routingTo: place,
         routingResult: null,
         routingError: null,
         routingLoading: false,
-        // No GPS: let the user click their position on the map right away
-        routePicking: !from,
       });
-      if (from) await get().fetchRoute(from, placeToRoutePoint(place));
     },
     clearRouting: () => {
       routingRequestId++;
-      set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null, routePicking: false });
+      set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null });
     },
   }))
 );
@@ -371,9 +355,9 @@ export const useStore = create<AppState>()(
 function placeToRoutePoint(place: Place): RoutePoint {
   const coords = place.geom_point?.coordinates;
   if (coords && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
-    return { lat: coords[1], lng: coords[0], name: place.name_vi, placeId: place.id, source: 'place' };
+    return { lat: coords[1], lng: coords[0], name: place.name_vi, placeId: place.id };
   }
-  return { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: place.name_vi, placeId: place.id, source: 'place' };
+  return { lat: PHENIKAA_CENTER[0], lng: PHENIKAA_CENTER[1], name: place.name_vi, placeId: place.id };
 }
 
 // Route fetching helper

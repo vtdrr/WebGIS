@@ -52,6 +52,7 @@ export default defineConfig({
       url: `http://127.0.0.1:${backendPort}/health/ready`,
       reuseExistingServer: true,
       timeout: 60_000,
+      env: { RATE_LIMIT_MAX: '1000000' },
     },
     {
       command: 'npm run dev',

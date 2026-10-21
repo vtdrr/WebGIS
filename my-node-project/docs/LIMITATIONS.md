@@ -6,6 +6,7 @@
 - Backend integration tests (14 files/151 tests) và Playwright (9/9 Chromium) đã chạy với PostGIS service/volume riêng. Các E2E dùng sample DB trong isolated test service; không chứng minh chất lượng dữ liệu chính thức hay hành vi production.
 - E2E đã thao tác GeometryEditor (vẽ polygon, reload, drag vertex, lưu, PostGIS self-intersection rejection/rollback và bỏ thay đổi chưa lưu) cùng upload PNG/malformed file trên test-only storage. Điều này xác nhận browser workflow kỹ thuật, không xác nhận người dùng thực hiện khảo sát/tọa độ chính xác.
 - Xóa place chỉ xóa bản ghi database; upload file được lưu trong thư mục tĩnh riêng và hiện không có cleanup/ref-count khi bản ghi bị xóa. Không thêm xóa file tự động vì ảnh có thể được tham chiếu dùng chung; cần quy định ownership trước khi triển khai cleanup.
+- Ứng dụng không lấy vị trí thiết bị/GPS và không cấp tuyến từ vị trí hiện tại. Người dùng chọn điểm đi từ danh sách địa điểm campus; backend routing vẫn giữ API tọa độ cho các caller khác.
 - Bản đồ phụ thuộc mạng và nhà cung cấp tile/imagery; độ sẵn sàng, giới hạn, attribution và độ phân giải do nhà cung cấp quyết định.
 - Chưa đo độ chính xác giờ mở cửa/liên hệ/tầng, benchmark hiệu năng hay coverage.
 - Backend test global setup vẫn DROP/CREATE database; URL bị khóa vào loopback port 5433 và database `phenikaa_gis_test`, trong Compose service/volume riêng. Chỉ chạy với test service đã được xác minh.

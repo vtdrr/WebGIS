@@ -2,7 +2,7 @@
 
 Ứng dụng WebGIS để tra cứu, quản lý và chỉ đường tới các địa điểm trong khuôn viên Trường Đại học Phenikaa. Hệ thống gồm giao diện React/Leaflet, API Fastify và cơ sở dữ liệu PostgreSQL/PostGIS.
 
-**Chức năng chính:** tìm kiếm có gợi ý bàn phím, lọc danh mục, xem footprint OSM, chọn địa điểm, định vị và chỉ đường trên mạng đi bộ OSM; giao diện quản trị hỗ trợ CRUD địa điểm và tải ảnh.
+**Chức năng chính:** tìm kiếm có gợi ý bàn phím, lọc danh mục, xem footprint OSM, chỉ đường đi bộ giữa các địa điểm campus được chọn từ danh sách. Ứng dụng không đọc vị trí GPS của thiết bị. Giao diện quản trị hỗ trợ CRUD địa điểm và tải ảnh.
 
 ## 🏗️ Kiến trúc
 
@@ -115,7 +115,7 @@ Giao diện chỉ hỗ trợ tiếng Việt. Footprint có polygon hiển thị 
 
 Điểm đi/đến ngoài mạng được nối tới nút gần nhất bằng đoạn thẳng; `off_network: true` và `meta.off_network_m` thể hiện phần này, giao diện vẽ nét chấm cam. Điểm cách mạng đường quá 3 km trả HTTP 422. `campus_paths` vẫn được giữ làm graph cũ nếu chưa nạp OSM; đường chim bay (`meta.fallback = true`) chỉ dùng khi không có tuyến nối được.
 
-Trên giao diện, nếu không có GPS, bấm “Chỉ đường” để bật chế độ chọn điểm xuất phát bằng click bản đồ; cũng có thể chọn điểm xuất phát từ danh sách. Tuyến đường vẫn hiển thị khi không có marker ở hai đầu.
+Trên giao diện, bấm “Chỉ đường” rồi chọn điểm xuất phát từ danh sách địa điểm. Ứng dụng không yêu cầu quyền định vị và không cung cấp chỉ đường từ vị trí GPS hiện tại; click vùng trống trên bản đồ không đặt điểm xuất phát. Tuyến đường vẫn hiển thị khi không có marker ở hai đầu.
 
 ## 🗺️ Dữ liệu không gian
 
@@ -135,7 +135,7 @@ Trên giao diện, nếu không có GPS, bấm “Chỉ đường” để bật
 
 - [x] Backend API: categories, places (CRUD, filter, search, nearby, GeoJSON), routing
 - [x] Database: PostGIS schema, migrations, seed, docker-compose
-- [x] Frontend: bản đồ Leaflet, tìm kiếm/gợi ý, lọc danh mục, chọn địa điểm, chỉ đường và geolocation
+- [x] Frontend: bản đồ Leaflet, tìm kiếm/gợi ý, lọc danh mục, chọn địa điểm và chỉ đường giữa các địa điểm campus
 - [x] Routing Dijkstra trên mạng lối đi OSM (có thể cập nhật bằng `db:import-osm-paths`)
 - [x] Admin UI tại `/#/admin`: CRUD địa điểm, chỉnh hình học và tải ảnh
 - [x] Swagger/OpenAPI documentation tại `/docs`

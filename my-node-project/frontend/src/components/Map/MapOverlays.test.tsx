@@ -11,11 +11,11 @@ describe('MapOverlays data states', () => {
   it('shows map loading and reports failed map data with a retry action', () => {
     const fetchMapPlaces = vi.fn();
     useStore.setState({ mapPlacesLoading: true, mapPlacesError: null, fetchMapPlaces });
-    const { rerender } = render(<MapOverlays geoError={null} geoLoading={false} onLocate={() => undefined} />);
+    const { rerender } = render(<MapOverlays schematicOpen={false} onCloseSchematic={() => undefined} />);
     expect(screen.getByRole('status')).toHaveTextContent('Đang tải địa điểm trên bản đồ');
 
     act(() => useStore.setState({ mapPlacesLoading: false, mapPlacesError: 'offline' }));
-    rerender(<MapOverlays geoError={null} geoLoading={false} onLocate={() => undefined} />);
+    rerender(<MapOverlays schematicOpen={false} onCloseSchematic={() => undefined} />);
     expect(screen.getByRole('alert')).toHaveTextContent('Không tải được địa điểm trên bản đồ.');
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
     expect(fetchMapPlaces).toHaveBeenCalledOnce();

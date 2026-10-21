@@ -36,44 +36,28 @@ beforeEach(() => {
 });
 
 describe('routing', () => {
-  it('startRoutingTo with GPS fetches a route right away, in the right order (lat,lng)', async () => {
-    api.getDirections.mockResolvedValue(route);
-    await useStore.getState().startRoutingTo(makePlace(), { lat: 20.95, lng: 105.74 });
-    const state = useStore.getState();
-    expect(api.getDirections).toHaveBeenCalledWith({ from: '20.95,105.74', to: '20.9626,105.7487', mode: 'walk' });
-    expect(state.routingResult).toEqual(route);
-    expect(state.routingFrom).toMatchObject({ source: 'gps', name: 'Vị trí của tôi' });
-    expect(state.routePicking).toBe(false);
-  });
-
-  it('names the GPS origin in Vietnamese', async () => {
-    api.getDirections.mockResolvedValue(route);
-    await useStore.getState().startRoutingTo(makePlace(), { lat: 20.95, lng: 105.74 });
-    expect(useStore.getState().routingFrom?.name).toBe('Vị trí của tôi');
-  });
-
-  it('without GPS it asks the user to pick the origin on the map', async () => {
-    await useStore.getState().startRoutingTo(makePlace(), null);
+  it('starts at the selected destination without setting an origin automatically', async () => {
+    await useStore.getState().startRoutingTo(makePlace());
     const state = useStore.getState();
     expect(api.getDirections).not.toHaveBeenCalled();
-    expect(state.routePicking).toBe(true);
     expect(state.routingFrom).toBeNull();
     expect(state.routingTo?.id).toBe('p-1');
   });
 
-  it('picking an origin fetches the route and stops picking', async () => {
+  it('selecting a known place as origin fetches the route', async () => {
     api.getDirections.mockResolvedValue(route);
-    await useStore.getState().startRoutingTo(makePlace(), null);
-    await useStore.getState().setRoutingOrigin({ lat: 20.9, lng: 105.7, name: 'x', source: 'map' });
-    expect(useStore.getState().routePicking).toBe(false);
+    await useStore.getState().startRoutingTo(makePlace());
+    await useStore.getState().setRoutingOrigin(makePlace({ id: 'origin', name_vi: 'Tòa A1' }));
     expect(api.getDirections).toHaveBeenCalledOnce();
+    expect(api.getDirections).toHaveBeenCalledWith({ from: '20.9626,105.7487', to: '20.9626,105.7487', mode: 'walk' });
     expect(useStore.getState().routingResult).toEqual(route);
   });
 
   it('keeps the server message when routing fails and clears the stale route', async () => {
     api.getDirections.mockResolvedValueOnce(route).mockRejectedValueOnce(new Error('Điểm đến quá xa'));
-    await useStore.getState().startRoutingTo(makePlace(), { lat: 20.95, lng: 105.74 });
-    await useStore.getState().setRoutingOrigin({ lat: 20.95, lng: 105.74, name: 'Vị trí của tôi', source: 'gps' });
+    await useStore.getState().startRoutingTo(makePlace());
+    await useStore.getState().setRoutingOrigin(makePlace({ id: 'origin' }));
+    await useStore.getState().setRoutingOrigin(makePlace({ id: 'second-origin', name_vi: 'Căng tin' }));
     await vi.waitFor(() => expect(useStore.getState().routingError).toBe('Điểm đến quá xa'));
     expect(useStore.getState().routingResult).toBeNull();
     expect(useStore.getState().routingLoading).toBe(false);
@@ -84,7 +68,7 @@ describe('routing', () => {
     const a = makePlace({ id: 'a', name_vi: 'A' });
     const b = makePlace({ id: 'b', name_vi: 'B', geom_point: { type: 'Point', coordinates: [105.75, 20.97] } });
     useStore.setState({ routePlaces: [a, b] });
-    await useStore.getState().startRoutingTo(b, null);
+    await useStore.getState().startRoutingTo(b);
     await useStore.getState().setRoutingOrigin(a);
     await useStore.getState().swapRouting();
     const state = useStore.getState();
@@ -94,9 +78,10 @@ describe('routing', () => {
 
   it('clearRouting resets everything', async () => {
     api.getDirections.mockResolvedValue(route);
-    await useStore.getState().startRoutingTo(makePlace(), { lat: 20.95, lng: 105.74 });
+    await useStore.getState().startRoutingTo(makePlace());
+    await useStore.getState().setRoutingOrigin(makePlace({ id: 'origin' }));
     useStore.getState().clearRouting();
-    expect(useStore.getState()).toMatchObject({ routingFrom: null, routingTo: null, routingResult: null, routePicking: false });
+    expect(useStore.getState()).toMatchObject({ routingFrom: null, routingTo: null, routingResult: null });
   });
 
   it('keeps the latest route when an older route resolves later', async () => {
@@ -164,7 +149,7 @@ describe('routing', () => {
       { lat: 20.9, lng: 105.7, name: 'origin' },
       { lat: 20.91, lng: 105.71, name: 'old destination' },
     );
-    await useStore.getState().startRoutingTo(makePlace({ id: 'new-destination' }), null);
+    await useStore.getState().startRoutingTo(makePlace({ id: 'new-destination' }));
     pending.resolve(route);
     await request;
 
@@ -172,7 +157,7 @@ describe('routing', () => {
       routingTo: { id: 'new-destination' },
       routingResult: null,
       routingLoading: false,
-      routePicking: true,
+      routingFrom: null,
     });
   });
 });

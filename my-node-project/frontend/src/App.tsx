@@ -2,25 +2,25 @@
 // Phenikaa WebGIS - Main App Component
 // =============================================
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   BaseMap,
   BuildingsLayer,
   RoutingLayer,
-  RoutePicker,
   RouteFit,
+  MapControls,
 } from './components/Map';
 import { MapOverlays } from './components/Map/MapOverlays';
 import { Sidebar } from './components/Layout/Sidebar';
 import { RoutePanel } from './components/Routing/RoutePanel';
 import { PlaceDetailPanel } from './components/UI';
-import { useGeolocation } from './hooks/useGeolocation';
 import { useStore } from './store/useStore';
 import type { Place } from './types';
 
 const isNarrowScreen = () => window.matchMedia?.('(max-width: 768px)').matches === true;
 
 function App() {
+  const [schematicOpen, setSchematicOpen] = useState(false);
   const places = useStore((s) => s.mapPlaces);
   const categories = useStore((s) => s.categories);
   const selectedPlace = useStore((s) => s.selectedPlace);
@@ -46,8 +46,6 @@ function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  const { position, error: geoError, loading: geoLoading, requestLocation } = useGeolocation();
-
   const handlePlaceSelect = useCallback(
     (place: Place) => {
       setSelectedPlace(place);
@@ -60,7 +58,7 @@ function App() {
 
   const handleDirections = () => {
     if (!selectedPlace) return;
-    startRoutingTo(selectedPlace, position);
+    startRoutingTo(selectedPlace);
     // The detail panel would cover the route panel, so close it
     setSelectedPlace(null);
   };
@@ -73,16 +71,14 @@ function App() {
         <BaseMap>
           <BuildingsLayer places={places} categories={categories} onPlaceClick={handlePlaceSelect} />
           <RoutingLayer route={routingResult?.routes?.[0] ?? null} fallback={routingResult?.meta?.fallback} />
-          <RoutePicker />
           <RouteFit />
+          <MapControls
+            onOpenSchematic={() => setSchematicOpen(true)}
+          />
         </BaseMap>
 
-        <MapOverlays
-          geoError={geoError}
-          geoLoading={geoLoading}
-          onLocate={requestLocation}
-        />
-        <RoutePanel gpsPosition={position} />
+        <MapOverlays schematicOpen={schematicOpen} onCloseSchematic={() => setSchematicOpen(false)} />
+        <RoutePanel />
       </main>
 
       {selectedPlace && (

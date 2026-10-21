@@ -37,7 +37,6 @@ const result = (over: Partial<RoutingResponse['meta']> = {}): RoutingResponse =>
 function setup(state: Parameters<typeof useStore.setState>[0] = {}) {
   const actions = {
     setRoutingOrigin: vi.fn(),
-    setRoutePicking: vi.fn(),
     swapRouting: vi.fn(),
     clearRouting: vi.fn(),
   };
@@ -48,18 +47,18 @@ function setup(state: Parameters<typeof useStore.setState>[0] = {}) {
 describe('RoutePanel', () => {
   it('renders nothing when there is no routing activity', () => {
     setup({ routingTo: null });
-    const { container } = render(<RoutePanel gpsPosition={null} />);
+    const { container } = render(<RoutePanel />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('asks for an origin and lists places except the destination', () => {
     setup();
-    render(<RoutePanel gpsPosition={null} />);
+    render(<RoutePanel />);
     expect(screen.getByText('Chọn điểm xuất phát để xem tuyến đường.')).toBeInTheDocument();
     const select = screen.getByLabelText('Điểm xuất phát');
     expect(select).toHaveTextContent('Căng tin');
     expect(select).not.toHaveTextContent('Thư viện');
-    expect(screen.getByText('Vị trí của tôi (chưa có GPS)')).toBeInTheDocument();
+    expect(select).not.toHaveTextContent('Vị trí của tôi');
     expect(screen.getByText('Đi bộ')).toBeInTheDocument();
     expect(screen.queryByText('Xe đạp')).not.toBeInTheDocument();
     expect(screen.queryByText('Xe lăn')).not.toBeInTheDocument();
@@ -69,7 +68,7 @@ describe('RoutePanel', () => {
     const building = makePlace({ id: 'building', name_vi: 'Tòa A1', category_code: 'building' });
     const parking = makePlace({ id: 'parking-2', name_vi: 'Bãi giữ xe 2', category_code: 'parking' });
     const actions = setup({ routingTo: parking, mapPlaces: [parking], routePlaces: [parking, building] });
-    render(<RoutePanel gpsPosition={null} />);
+    render(<RoutePanel />);
 
     const originSelect = screen.getByLabelText('Điểm xuất phát');
     expect(originSelect).toHaveTextContent('Tòa A1');
@@ -78,30 +77,28 @@ describe('RoutePanel', () => {
     expect(actions.setRoutingOrigin).toHaveBeenCalledWith(building);
   });
 
-  it('picking a place or GPS as origin goes through the store', () => {
+  it('selecting a place as origin goes through the store', () => {
     const actions = setup();
-    render(<RoutePanel gpsPosition={{ lat: 20.9, lng: 105.7 }} />);
+    render(<RoutePanel />);
     fireEvent.change(screen.getByLabelText('Điểm xuất phát'), { target: { value: 'other' } });
     expect(actions.setRoutingOrigin).toHaveBeenCalledWith(other);
-    fireEvent.change(screen.getByLabelText('Điểm xuất phát'), { target: { value: '__gps__' } });
-    expect(actions.setRoutingOrigin).toHaveBeenLastCalledWith({ lat: 20.9, lng: 105.7, name: 'Vị trí của tôi', source: 'gps' });
   });
 
-  it('toggles map picking and closes', () => {
+  it('does not offer map-click origin selection and still closes', () => {
     const actions = setup();
-    render(<RoutePanel gpsPosition={null} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn điểm xuất phát trên bản đồ' }));
-    expect(actions.setRoutePicking).toHaveBeenCalledWith(true);
+    render(<RoutePanel />);
+    expect(screen.queryByRole('button', { name: /bản đồ/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Điểm xuất phát')).toHaveTextContent('Căng tin');
     fireEvent.click(screen.getByRole('button', { name: 'Đóng chỉ đường' }));
     expect(actions.clearRouting).toHaveBeenCalled();
   });
 
   it('shows the summary, steps and the off-network warning', () => {
     setup({
-      routingFrom: { lat: 1, lng: 2, name: 'Căng tin', placeId: 'other', source: 'place' },
+      routingFrom: { lat: 1, lng: 2, name: 'Căng tin', placeId: 'other' },
       routingResult: result({ off_network_m: 120 }),
     });
-    render(<RoutePanel gpsPosition={null} />);
+    render(<RoutePanel />);
     expect(screen.getByText('1.5 km')).toBeInTheDocument();
     expect(screen.getByText('17 phút')).toBeInTheDocument();
     expect(screen.getByText('Đi từ A đến B')).toBeInTheDocument();
@@ -112,20 +109,20 @@ describe('RoutePanel', () => {
 
   it('marks a straight-line fallback and hides the off-network note', () => {
     setup({
-      routingFrom: { lat: 1, lng: 2, name: 'x', source: 'map' },
+      routingFrom: null,
       routingResult: result({ fallback: true, off_network_m: 500 }),
     });
-    render(<RoutePanel gpsPosition={null} />);
+    render(<RoutePanel />);
     expect(screen.getByText('Đường chim bay')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('không phải tuyến đi bộ đã xác minh');
     expect(screen.queryByText(/Gồm khoảng/)).not.toBeInTheDocument();
-    // a map-picked origin cannot be swapped
+    // No origin is selected in this fallback display.
     expect(screen.getByRole('button', { name: 'Đổi điểm đi và điểm đến' })).toBeDisabled();
   });
 
   it('shows loading and error states in Vietnamese', () => {
     setup({ routingLoading: true, routingError: 'Quá xa' });
-    render(<RoutePanel gpsPosition={null} />);
+    render(<RoutePanel />);
     expect(screen.getByText('Đang tính tuyến đường...')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Quá xa');
     expect(screen.getByText('Thư viện')).toBeInTheDocument();
@@ -135,7 +132,7 @@ describe('RoutePanel', () => {
   it('reports a failed route-origin list separately and offers retry', () => {
     const fetchRoutePlaces = vi.fn();
     setup({ routePlacesError: 'offline', fetchRoutePlaces });
-    render(<RoutePanel gpsPosition={null} />);
+    render(<RoutePanel />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('Không tải được danh sách điểm xuất phát.');
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại danh sách' }));
