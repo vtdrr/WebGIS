@@ -20,13 +20,14 @@ export function SearchBar({ onSelect }: SearchBarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { searchQuery, setSearchQuery, searchPlaces, searchResults, searchLoading, clearSearch } = useStore(
+  const { searchQuery, setSearchQuery, searchPlaces, searchResults, searchLoading, searchError, clearSearch } = useStore(
     useShallow((state) => ({
       searchQuery: state.searchQuery,
       setSearchQuery: state.setSearchQuery,
       searchPlaces: state.searchPlaces,
       searchResults: state.searchResults,
       searchLoading: state.searchLoading,
+      searchError: state.searchError,
       clearSearch: state.clearSearch,
     })),
   );
@@ -133,7 +134,15 @@ export function SearchBar({ onSelect }: SearchBarProps) {
       {open && (
         <div id="search-results" role="listbox" className="search__results">
           {searchLoading && <div className="search__status">{t('search.loading')}</div>}
-          {!searchLoading && searchResults.length === 0 && (
+          {!searchLoading && searchError && (
+            <div className="search__status" role="alert">
+              <span>{t('search.failed')}</span>
+              <button type="button" className="btn btn--small" onClick={() => searchPlaces(query)}>
+                {t('search.retry')}
+              </button>
+            </div>
+          )}
+          {!searchLoading && !searchError && searchResults.length === 0 && (
             <div className="search__status search__status--muted">{t('search.noResults', { query })}</div>
           )}
           {!searchLoading &&

@@ -154,6 +154,24 @@ button { font-family: inherit; }
 .map-hint button { background: rgba(255,255,255,0.18); color: var(--white); border: none; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; flex-shrink: 0; }
 .map-toast { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000; background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); padding: 8px 16px; border-radius: 8px; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: calc(100% - 32px); }
 .map-toast--lower { top: 72px; }
+.map-toast--data { display: flex; align-items: center; gap: 10px; }
+.map-toast--data button { flex: 0 0 auto; }
+.map-toast--loading { background: #fff; border-color: var(--gray-200); color: var(--gray-700); }
+.schematic-trigger { font-size: 22px; color: var(--campus-ink, #12303a); }
+.schematic-backdrop {
+  position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgb(12 24 30 / 72%);
+}
+.schematic-dialog {
+  width: min(1180px, 100%); max-height: min(92vh, 1000px); display: flex; flex-direction: column;
+  overflow: hidden; border-radius: 14px; background: var(--white); box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
+}
+.schematic-dialog__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--gray-200); }
+.schematic-dialog__header h2 { color: var(--gray-800); font-size: 16px; font-weight: 700; }
+.schematic-dialog__header p, .schematic-dialog__note { color: var(--gray-500); font-size: 12px; line-height: 1.5; }
+.schematic-dialog__image-wrap { min-height: 0; overflow: auto; background: #f7f7f5; text-align: center; }
+.schematic-dialog__image-wrap img { display: block; width: 100%; height: auto; margin: auto; }
+.schematic-dialog__note { padding: 10px 20px 14px; }
 /* ---------- Route panel ---------- */
 .route-panel { position: absolute; bottom: 24px; right: 16px; z-index: 1000; width: 340px; max-width: calc(100vw - 32px); background: var(--white); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.18); border: 1px solid var(--gray-200); overflow: hidden; }
 .route-panel__header { padding: 12px 16px; border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--gray-800); }

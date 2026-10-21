@@ -44,7 +44,19 @@ test.describe('map', () => {
     // no GPS in the test browser: the app asks to pick the origin
     await expect(page.getByRole('status').filter({ hasText: 'Bấm vào bản đồ' })).toBeVisible();
 
+    const routeResponsePromise = page.waitForResponse((response) =>
+      response.url().includes('/api/routing?') && response.request().method() === 'GET',
+    );
     await panel.getByRole('combobox', { name: 'Điểm xuất phát' }).selectOption({ label: 'Cổng Nam (cổng chính)' });
+    const routeResponse = await routeResponsePromise;
+    expect(routeResponse.status()).toBe(200);
+    const routeResult = await routeResponse.json() as {
+      routes: Array<{ geometry: { coordinates: Array<[number, number]> } }>;
+      meta: { mode: string; fallback: boolean };
+    };
+    expect(routeResult.meta.mode).toBe('walk');
+    expect(routeResult.meta.fallback).toBe(false);
+    expect(routeResult.routes[0].geometry.coordinates.length).toBeGreaterThan(2);
     await expect(panel.getByText('Quãng đường')).toBeVisible();
     await expect(panel.getByText('Thời gian')).toBeVisible();
 
@@ -59,12 +71,24 @@ test.describe('map', () => {
 
   test('remains Vietnamese despite an old English language preference', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Phenikaa WebGIS' })).toBeVisible();
-    await expect(page.getByText('Bản đồ khuôn viên trường')).toBeVisible();
+    const sidebar = page.getByRole('complementary', { name: 'Bản đồ khuôn viên trường' });
+    await expect(sidebar.getByText('Bản đồ khuôn viên trường')).toBeVisible();
     await page.evaluate(() => localStorage.setItem('webgis.lang', 'en'));
     await page.reload();
-    await expect(page.getByText('Bản đồ khuôn viên trường')).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Bản đồ khuôn viên trường' }).getByText('Bản đồ khuôn viên trường')).toBeVisible();
     await expect(page.getByPlaceholder('Tìm kiếm tòa nhà, phòng học, thư viện...')).toBeVisible();
   });
+
+  test('opens the non-georeferenced campus conference schematic as a reference', async ({ page }) => {
+    await page.getByRole('button', { name: 'Xem sơ đồ trường tham khảo' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Sơ đồ trường tham khảo' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('không theo tỷ lệ tọa độ')).toBeVisible();
+    await expect(dialog.getByRole('img', { name: /Sơ đồ Trường Đại học Phenikaa/ })).toHaveAttribute('src', '/phenikaa-event-schematic.jpg');
+    await dialog.getByRole('button', { name: 'Đóng sơ đồ' }).click();
+    await expect(dialog).toBeHidden();
+  });
+
 });
 
 test.describe('narrow screen', () => {

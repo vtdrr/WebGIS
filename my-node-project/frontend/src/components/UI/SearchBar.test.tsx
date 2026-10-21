@@ -51,6 +51,19 @@ describe('SearchBar', () => {
     expect(screen.getByText('Không tìm thấy kết quả cho "zzz"')).toBeInTheDocument();
   });
 
+  it('shows a failure separately from empty results and retries the query', () => {
+    const searchPlaces = useStore.getState().searchPlaces as ReturnType<typeof vi.fn>;
+    useStore.setState({ searchError: 'offline', searchLoading: false, searchResults: [] });
+    render(<SearchBar onSelect={() => undefined} />);
+    type('library');
+    act(() => void vi.advanceTimersByTime(300));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Không thể tìm kiếm lúc này.');
+    expect(screen.queryByText('Không tìm thấy kết quả cho "library"')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(searchPlaces).toHaveBeenLastCalledWith('library');
+  });
+
   it('always uses Vietnamese names and texts', () => {
     useStore.setState({ searchResults: [makePlace({ name_vi: 'Thư viện', name_en: 'Library' })] });
     render(<SearchBar onSelect={() => undefined} />);

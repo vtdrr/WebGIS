@@ -30,6 +30,7 @@ interface AppState {
   categories: Category[];
   categoriesLoading: boolean;
   categoriesError: string | null;
+  categoriesLoaded: boolean;
   fetchCategories: () => Promise<void>;
 
   // Places
@@ -45,7 +46,14 @@ interface AppState {
   // All places for the map layer (independent from the paginated sidebar list)
   mapPlaces: Place[];
   mapPlacesLoading: boolean;
+  mapPlacesError: string | null;
   fetchMapPlaces: () => Promise<void>;
+
+  // Unfiltered places for choosing a route origin, regardless of sidebar filters
+  routePlaces: Place[];
+  routePlacesLoading: boolean;
+  routePlacesError: string | null;
+  fetchRoutePlaces: () => Promise<void>;
 
   // Selected place
   selectedPlace: Place | null;
@@ -105,6 +113,11 @@ interface AppState {
 const MAP_PLACES_PAGE_SIZE = 100; // backend max page size
 const MAP_PLACES_MAX_PAGES = 50;   // safety cap: 5000 places
 let mapPlacesRequestId = 0;
+let routePlacesRequestId = 0;
+let placesRequestId = 0;
+let categoriesRequestId = 0;
+let searchRequestId = 0;
+let routingRequestId = 0;
 
 export const useStore = create<AppState>()(
   subscribeWithSelector((set, get) => ({
@@ -115,12 +128,15 @@ export const useStore = create<AppState>()(
     categories: [],
     categoriesLoading: false,
     categoriesError: null,
+    categoriesLoaded: false,
     fetchCategories: async () => {
+      const requestId = ++categoriesRequestId;
       set({ categoriesLoading: true, categoriesError: null });
       try {
         const categories = await categoriesApi.list();
-        set({ categories, categoriesLoading: false });
+        if (requestId === categoriesRequestId) set({ categories, categoriesLoading: false, categoriesLoaded: true });
       } catch (err) {
+        if (requestId !== categoriesRequestId) return;
           set({ categoriesError: err instanceof Error ? err.message : 'Không tải được danh mục', categoriesLoading: false });
       }
     },
@@ -133,31 +149,37 @@ export const useStore = create<AppState>()(
     placesQuery: { page: 1, limit: 20, sort: 'name_vi', order: 'asc' },
     setPlacesQuery: (query) => set((state) => ({ placesQuery: { ...state.placesQuery, ...query, page: 1 } })),
     fetchPlaces: async () => {
+      const requestId = ++placesRequestId;
       const { placesQuery } = get();
       set({ placesLoading: true, placesError: null });
       try {
         const response = await placesApi.list(placesQuery);
+        if (requestId !== placesRequestId) return;
         set({
           places: response.data,
           placesMeta: response.meta,
           placesLoading: false,
         });
       } catch (err) {
+        if (requestId !== placesRequestId) return;
           set({ placesError: err instanceof Error ? err.message : 'Không tải được địa điểm', placesLoading: false });
       }
     },
     loadMorePlaces: async () => {
       const { placesQuery, placesMeta, places } = get();
       if (!placesMeta || placesQuery.page >= placesMeta.totalPages) return;
+      const requestId = placesRequestId;
       set({ placesLoading: true });
       try {
         const response = await placesApi.list({ ...placesQuery, page: placesQuery.page + 1 });
+        if (requestId !== placesRequestId) return;
         set({
           places: [...places, ...response.data],
           placesMeta: response.meta,
           placesLoading: false,
         });
       } catch (err) {
+        if (requestId !== placesRequestId) return;
           set({ placesError: err instanceof Error ? err.message : 'Không tải thêm được địa điểm', placesLoading: false });
       }
     },
@@ -165,9 +187,10 @@ export const useStore = create<AppState>()(
     // All places for the map layer
     mapPlaces: [],
     mapPlacesLoading: false,
+    mapPlacesError: null,
     fetchMapPlaces: async () => {
       const requestId = ++mapPlacesRequestId;
-      set({ mapPlacesLoading: true });
+      set({ mapPlacesLoading: true, mapPlacesError: null });
       try {
         const { category } = get().placesQuery;
         const all: Place[] = [];
@@ -184,9 +207,44 @@ export const useStore = create<AppState>()(
           all.push(...response.data);
           if (page >= response.meta.totalPages) break;
         }
-        set({ mapPlaces: all, mapPlacesLoading: false });
-      } catch {
-        if (requestId === mapPlacesRequestId) set({ mapPlacesLoading: false });
+        set({ mapPlaces: all, mapPlacesLoading: false, mapPlacesError: null });
+      } catch (err) {
+        if (requestId === mapPlacesRequestId) {
+          set({
+            mapPlacesLoading: false,
+            mapPlacesError: err instanceof Error ? err.message : 'Không tải được địa điểm trên bản đồ',
+          });
+        }
+      }
+    },
+
+    routePlaces: [],
+    routePlacesLoading: false,
+    routePlacesError: null,
+    fetchRoutePlaces: async () => {
+      const requestId = ++routePlacesRequestId;
+      set({ routePlacesLoading: true, routePlacesError: null });
+      try {
+        const all: Place[] = [];
+        for (let page = 1; page <= MAP_PLACES_MAX_PAGES; page++) {
+          const response = await placesApi.list({
+            page,
+            limit: MAP_PLACES_PAGE_SIZE,
+            sort: 'name_vi',
+            order: 'asc',
+          });
+          if (requestId !== routePlacesRequestId) return;
+          all.push(...response.data);
+          if (page >= response.meta.totalPages) break;
+        }
+        set({ routePlaces: all, routePlacesLoading: false, routePlacesError: null });
+      } catch (err) {
+        if (requestId === routePlacesRequestId) {
+          set({
+            routePlacesLoading: false,
+            routePlacesError: err instanceof Error ? err.message : 'Không tải được địa điểm cho điểm xuất phát',
+          });
+        }
       }
     },
 
@@ -201,16 +259,24 @@ export const useStore = create<AppState>()(
     searchQuery: '',
     setSearchQuery: (query) => set({ searchQuery: query }),
     searchPlaces: async (query) => {
-      if (!query.trim()) { set({ searchResults: [], searchQuery: '' }); return; }
+      const requestId = ++searchRequestId;
+      if (!query.trim()) {
+        set({ searchResults: [], searchQuery: '', searchError: null, searchLoading: false });
+        return;
+      }
       set({ searchLoading: true, searchError: null, searchQuery: query });
       try {
         const response = await placesApi.search({ q: query, limit: 10 });
-        set({ searchResults: response.data, searchLoading: false });
+        if (requestId === searchRequestId) set({ searchResults: response.data, searchLoading: false });
       } catch (err) {
+        if (requestId !== searchRequestId) return;
           set({ searchError: err instanceof Error ? err.message : 'Tìm kiếm không thành công', searchLoading: false });
       }
     },
-    clearSearch: () => set({ searchResults: [], searchQuery: '', searchError: null }),
+    clearSearch: () => {
+      searchRequestId++;
+      set({ searchResults: [], searchQuery: '', searchError: null, searchLoading: false });
+    },
 
     // Map
     mapState: {
@@ -250,10 +316,14 @@ export const useStore = create<AppState>()(
     setRoutingFrom: (point) => set({ routingFrom: point }),
     routePicking: false,
     setRoutePicking: (picking) => set({ routePicking: picking }),
-    setRoutingTo: (place) => set({ routingTo: place }),
+    setRoutingTo: (place) => {
+      routingRequestId++;
+      set({ routingTo: place, routingResult: null, routingError: null, routingLoading: false });
+    },
     setRoutingOrigin: async (origin) => {
       if (!origin) {
-        set({ routingFrom: null, routingResult: null, routingError: null });
+        routingRequestId++;
+        set({ routingFrom: null, routingResult: null, routingError: null, routingLoading: false });
         return;
       }
       const from: RoutePoint = 'name_vi' in origin ? placeToRoutePoint(origin) : origin;
@@ -262,9 +332,9 @@ export const useStore = create<AppState>()(
       if (routingTo) await get().fetchRoute(from, placeToRoutePoint(routingTo));
     },
     swapRouting: async () => {
-      const { routingFrom, routingTo, mapPlaces, places } = get();
+      const { routingFrom, routingTo, routePlaces } = get();
       if (!routingFrom?.placeId || !routingTo) return;
-      const newTo = [...mapPlaces, ...places].find((p) => p.id === routingFrom.placeId);
+      const newTo = routePlaces.find((p) => p.id === routingFrom.placeId);
       if (!newTo) return;
       const newFrom = placeToRoutePoint(routingTo);
       set({ routingFrom: newFrom, routingTo: newTo, routingError: null });
@@ -274,6 +344,7 @@ export const useStore = create<AppState>()(
       await fetchRouteImpl(set, get, from, to);
     },
     startRoutingTo: async (place, userPosition) => {
+      routingRequestId++;
       // Without a GPS fix the user must pick an origin explicitly
       const from: RoutePoint | null = userPosition
         ? { lat: userPosition.lat, lng: userPosition.lng, name: translate(get().lang, 'map.myLocation'), source: 'gps' }
@@ -283,12 +354,16 @@ export const useStore = create<AppState>()(
         routingTo: place,
         routingResult: null,
         routingError: null,
+        routingLoading: false,
         // No GPS: let the user click their position on the map right away
         routePicking: !from,
       });
       if (from) await get().fetchRoute(from, placeToRoutePoint(place));
     },
-    clearRouting: () => set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null, routePicking: false }),
+    clearRouting: () => {
+      routingRequestId++;
+      set({ routingFrom: null, routingTo: null, routingResult: null, routingLoading: false, routingError: null, routePicking: false });
+    },
   }))
 );
 
@@ -308,6 +383,7 @@ async function fetchRouteImpl(
   from: { lat: number; lng: number; name: string },
   to: { lat: number; lng: number; name: string },
 ): Promise<void> {
+  const requestId = ++routingRequestId;
   set({ routingLoading: true, routingError: null });
   try {
     const result = await routingApi.getDirections({
@@ -315,8 +391,9 @@ async function fetchRouteImpl(
       to: `${to.lat},${to.lng}`,
       mode: 'walk',
     });
-    set({ routingResult: result, routingLoading: false });
+    if (requestId === routingRequestId) set({ routingResult: result, routingLoading: false });
   } catch (err) {
+    if (requestId !== routingRequestId) return;
     set({
       routingError: err instanceof Error ? err.message : translate(get().lang, 'route.failed'),
       routingLoading: false,

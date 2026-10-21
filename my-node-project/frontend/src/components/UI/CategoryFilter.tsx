@@ -4,9 +4,13 @@ import { useT } from '../../i18n/useT';
 
 export function CategoryFilter() {
   const { t, categoryName } = useT();
-  const { categories, activeCategoryFilter, setActiveCategoryFilter } = useStore(
+  const { categories, categoriesLoading, categoriesError, categoriesLoaded, fetchCategories, activeCategoryFilter, setActiveCategoryFilter } = useStore(
     useShallow((state) => ({
       categories: state.categories,
+      categoriesLoading: state.categoriesLoading,
+      categoriesError: state.categoriesError,
+      categoriesLoaded: state.categoriesLoaded,
+      fetchCategories: state.fetchCategories,
       activeCategoryFilter: state.activeCategoryFilter,
       setActiveCategoryFilter: state.setActiveCategoryFilter,
     })),
@@ -24,6 +28,18 @@ export function CategoryFilter() {
           </button>
         )}
       </div>
+      {categoriesLoading && categories.length === 0 && <p className="search__status" role="status">{t('category.loading')}</p>}
+      {categoriesError && (
+        <div className="alert alert--error alert--small" role="alert">
+          {t('category.loadFailed')}
+          <button type="button" className="btn btn--small" onClick={fetchCategories} disabled={categoriesLoading}>
+            {t('category.retry')}
+          </button>
+        </div>
+      )}
+      {categoriesLoaded && !categoriesLoading && !categoriesError && categories.length === 0 && (
+        <p className="search__status" role="status">{t('category.empty')}</p>
+      )}
       <div className="category-filter__list">
         {categories.map((category) => {
           const active = activeCategoryFilter === category.code;

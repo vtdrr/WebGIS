@@ -31,14 +31,16 @@ function App() {
   const startRoutingTo = useStore((s) => s.startRoutingTo);
   const fetchPlaces = useStore((s) => s.fetchPlaces);
   const fetchMapPlaces = useStore((s) => s.fetchMapPlaces);
+  const fetchRoutePlaces = useStore((s) => s.fetchRoutePlaces);
   const fetchCategories = useStore((s) => s.fetchCategories);
   const lang = useStore((s) => s.lang);
 
   useEffect(() => {
     fetchPlaces();
     fetchMapPlaces();
+    fetchRoutePlaces();
     fetchCategories();
-  }, [fetchPlaces, fetchMapPlaces, fetchCategories]);
+  }, [fetchPlaces, fetchMapPlaces, fetchRoutePlaces, fetchCategories]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -75,7 +77,11 @@ function App() {
           <RouteFit />
         </BaseMap>
 
-        <MapOverlays geoError={geoError} geoLoading={geoLoading} onLocate={requestLocation} />
+        <MapOverlays
+          geoError={geoError}
+          geoLoading={geoLoading}
+          onLocate={requestLocation}
+        />
         <RoutePanel gpsPosition={position} />
       </main>
 

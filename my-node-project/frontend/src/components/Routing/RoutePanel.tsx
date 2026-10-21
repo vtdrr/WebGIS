@@ -16,11 +16,14 @@ interface RoutePanelProps {
 export function RoutePanel({ gpsPosition }: RoutePanelProps) {
   const { t, placeName } = useT();
   const {
-    mapPlaces, routingFrom, routingTo, routingResult, routingLoading, routingError,
+    routePlaces, routePlacesLoading, routePlacesError, fetchRoutePlaces, routingFrom, routingTo, routingResult, routingLoading, routingError,
     setRoutingOrigin, routePicking, setRoutePicking, swapRouting, clearRouting,
   } = useStore(
     useShallow((s) => ({
-      mapPlaces: s.mapPlaces,
+      routePlaces: s.routePlaces,
+      routePlacesLoading: s.routePlacesLoading,
+      routePlacesError: s.routePlacesError,
+      fetchRoutePlaces: s.fetchRoutePlaces,
       routingFrom: s.routingFrom,
       routingTo: s.routingTo,
       routingResult: s.routingResult,
@@ -35,8 +38,8 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
   );
 
   const originOptions = useMemo(
-    () => mapPlaces.filter((p) => p.geom_point?.coordinates && p.id !== routingTo?.id),
-    [mapPlaces, routingTo],
+    () => routePlaces.filter((p) => p.geom_point?.coordinates && p.id !== routingTo?.id),
+    [routePlaces, routingTo],
   );
 
   if (!(routingResult || routingLoading || routingError || routingTo)) return null;
@@ -55,7 +58,7 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
     } else if (value === MAP_ORIGIN) {
       // Already picked on the map: nothing to change
     } else {
-      const place = mapPlaces.find((p) => p.id === value);
+      const place = routePlaces.find((p) => p.id === value);
       if (place) setRoutingOrigin(place);
     }
   };
@@ -82,6 +85,7 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
             <span className="dot" style={{ background: '#3b82f6' }} />
             <select value={originValue} onChange={(e) => handleOriginChange(e.target.value)} aria-label={t('route.from')}>
               <option value="">{t('route.chooseOrigin')}</option>
+              {routePlacesLoading && <option value="__loading__" disabled>{t('route.originsLoading')}</option>}
               {routingFrom?.source === 'map' && <option value={MAP_ORIGIN}>{t('route.originPicked')}</option>}
               <option value={GPS_ORIGIN} disabled={!gpsPosition}>
                 {gpsPosition ? t('map.myLocation') : t('route.noGps')}
@@ -118,6 +122,14 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
             <span className="route-panel__destination">{routingTo ? placeName(routingTo) : '...'}</span>
           </div>
           {!routingFrom && routingTo && !routingLoading && <div className="route-panel__hint">{t('route.needOrigin')}</div>}
+          {routePlacesError && (
+            <div className="alert alert--error alert--small" role="alert">
+              {t('route.originsLoadFailed')}
+              <button type="button" className="btn btn--small" onClick={fetchRoutePlaces} disabled={routePlacesLoading}>
+                {t('route.retryOrigins')}
+              </button>
+            </div>
+          )}
         </div>
 
         {routingLoading && (
@@ -145,6 +157,12 @@ export function RoutePanel({ gpsPosition }: RoutePanelProps) {
               </div>
               {routingResult?.meta?.fallback && <div className="badge badge--warning">{t('route.straightLine')}</div>}
             </div>
+
+            {routingResult?.meta?.fallback && (
+              <div className="alert alert--warning alert--small" role="alert">
+                {t('route.fallbackNotice')}
+              </div>
+            )}
 
             {!routingResult?.meta?.fallback && offNetworkM > 0 && (
               <div className="alert alert--warning alert--small">

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { makeCategory, makePlace } from '../../test/fixtures';
 import { useStore } from '../../store/useStore';
 import { CategoryFilter } from './CategoryFilter';
@@ -62,5 +62,23 @@ describe('CategoryFilter', () => {
     expect(setActiveCategoryFilter).toHaveBeenLastCalledWith(null);
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ lọc' }));
     expect(setActiveCategoryFilter).toHaveBeenLastCalledWith(null);
+  });
+
+  it('distinguishes category loading and failure and offers retry', () => {
+    const fetchCategories = vi.fn();
+    useStore.setState({ categories: [], categoriesLoading: true, categoriesError: null, fetchCategories });
+    const { rerender } = render(<CategoryFilter />);
+    expect(screen.getByRole('status')).toHaveTextContent('Đang tải danh mục');
+
+    act(() => useStore.setState({ categoriesLoading: false, categoriesError: 'offline' }));
+    rerender(<CategoryFilter />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Không tải được danh mục');
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại danh mục' }));
+    expect(fetchCategories).toHaveBeenCalledOnce();
+    expect(screen.queryByText('Chưa có danh mục để lọc.')).not.toBeInTheDocument();
+
+    act(() => useStore.setState({ categoriesError: null, categoriesLoaded: true }));
+    rerender(<CategoryFilter />);
+    expect(screen.getByRole('status')).toHaveTextContent('Chưa có danh mục để lọc.');
   });
 });

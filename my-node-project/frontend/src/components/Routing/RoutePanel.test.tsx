@@ -41,7 +41,7 @@ function setup(state: Parameters<typeof useStore.setState>[0] = {}) {
     swapRouting: vi.fn(),
     clearRouting: vi.fn(),
   };
-  useStore.setState({ ...initial, lang: 'vi', mapPlaces: [target, other], routingTo: target, ...actions, ...state } as never, true);
+  useStore.setState({ ...initial, lang: 'vi', mapPlaces: [target, other], routePlaces: [target, other], routingTo: target, ...actions, ...state } as never, true);
   return actions;
 }
 
@@ -63,6 +63,19 @@ describe('RoutePanel', () => {
     expect(screen.getByText('Đi bộ')).toBeInTheDocument();
     expect(screen.queryByText('Xe đạp')).not.toBeInTheDocument();
     expect(screen.queryByText('Xe lăn')).not.toBeInTheDocument();
+  });
+
+  it('lists origin choices from all places even when the map is category-filtered', () => {
+    const building = makePlace({ id: 'building', name_vi: 'Tòa A1', category_code: 'building' });
+    const parking = makePlace({ id: 'parking-2', name_vi: 'Bãi giữ xe 2', category_code: 'parking' });
+    const actions = setup({ routingTo: parking, mapPlaces: [parking], routePlaces: [parking, building] });
+    render(<RoutePanel gpsPosition={null} />);
+
+    const originSelect = screen.getByLabelText('Điểm xuất phát');
+    expect(originSelect).toHaveTextContent('Tòa A1');
+    expect(originSelect).not.toHaveTextContent('Bãi giữ xe 2');
+    fireEvent.change(originSelect, { target: { value: building.id } });
+    expect(actions.setRoutingOrigin).toHaveBeenCalledWith(building);
   });
 
   it('picking a place or GPS as origin goes through the store', () => {
@@ -104,6 +117,7 @@ describe('RoutePanel', () => {
     });
     render(<RoutePanel gpsPosition={null} />);
     expect(screen.getByText('Đường chim bay')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('không phải tuyến đi bộ đã xác minh');
     expect(screen.queryByText(/Gồm khoảng/)).not.toBeInTheDocument();
     // a map-picked origin cannot be swapped
     expect(screen.getByRole('button', { name: 'Đổi điểm đi và điểm đến' })).toBeDisabled();
@@ -116,5 +130,15 @@ describe('RoutePanel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Quá xa');
     expect(screen.getByText('Thư viện')).toBeInTheDocument();
     expect(screen.getByLabelText('Điểm xuất phát')).toHaveTextContent('Căng tin');
+  });
+
+  it('reports a failed route-origin list separately and offers retry', () => {
+    const fetchRoutePlaces = vi.fn();
+    setup({ routePlacesError: 'offline', fetchRoutePlaces });
+    render(<RoutePanel gpsPosition={null} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Không tải được danh sách điểm xuất phát.');
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại danh sách' }));
+    expect(fetchRoutePlaces).toHaveBeenCalledOnce();
   });
 });
