@@ -6,7 +6,7 @@ HỒ SƠ TỔNG QUAN VÀ BÀN GIAO DỰ ÁN WEBGIS PHENIKAA
 ------------------------------------------------------------
 Tên: PROJECT_HANDOVER_FULL_REPORT.txt
 Vị trí: my-node-project/PROJECT_HANDOVER_FULL_REPORT.txt
-Mốc rà soát: 21-10-2026. Phạm vi: repository tại thời điểm rà soát, không phải bản phát hành sạch.
+Mốc rà soát: 22-10-2026. Repository: branch main, HEAD e4cdaae (origin/main cùng commit). Đây là mã hiện hành trong working tree, không khẳng định là bản triển khai production.
 
 Quy ước bằng chứng:
 [ĐỌC MÃ NGUỒN] hành vi/thiết kế thể hiện trong source/config, chưa đồng nghĩa runtime thành công.
@@ -16,9 +16,9 @@ Quy ước bằng chứng:
 [CHƯA XÁC MINH] chưa có bằng chứng đủ tin cậy.
 [KHÔNG ĐỦ BẰNG CHỨNG] không thể đưa ra kết luận.
 
-Git: repository ở C:/Users/ADMIN/Documents/WebGIS; ứng dụng ở my-node-project/. `git status --short` cho thấy nhiều tệp sửa chưa commit và nhiều file chưa track, bao gồm README, CI, backend/frontend, test, cấu hình, GeoJSON, ảnh, routing JSON và docs. Đây là thay đổi sẵn có của người dùng; không được quy kết lịch sử/tác giả, không được discard. Không đọc `.env.test.local` và không công bố giá trị môi trường. Hand-over này chưa tồn tại trước khi tạo.
+Git: repository ở C:/Users/ADMIN/Documents/WebGIS; ứng dụng ở my-node-project/. `git status --short` tại lượt rà soát: không có modified tracked files; có ba mục chưa track ở root: một JPG, `my-node-project/package-lock.json`, và thư mục có tên Unicode hiển thị escaped trong output. Không mở rộng/chuyển/xóa các mục này; không quy kết tác giả. `main` và `origin/main` cùng HEAD e4cdaae. Các commit gần nhất gồm `feat(frontend): add mapped campus photos to place details`, `data(gis): track campus GeoJSON source exports`, `fix(frontend): remove GPS and stabilize map controls`. Không đọc `.env.test.local` và không công bố cấu hình bí mật.
 
-Không chạy backend tests/E2E vì global setup có DROP/CREATE DB và test environment hiện có cấu hình cục bộ. Không chạy build/lint/typecheck/importer/Overpass trong lượt này; do đó mọi kết quả chạy trước chỉ được nêu là đã báo cáo. Không đọc dữ liệu secrets.
+Lượt rà soát tài liệu này không chạy tests/build/lint/typecheck hoặc importer. Kết quả mới nhất được dẫn từ `docs/TESTING.md`, nơi ghi cụ thể các suite đã chạy trên test service/database cô lập; đây là bằng chứng được tài liệu dự án ghi lại, không phải xác nhận thực thi mới ngày 22-10. Không chạy OSM/Overpass, không khởi động/reset DB và không đọc secrets.
 
 1. TÓM TẮT ĐIỀU HÀNH
 ------------------------------------------------------------
@@ -26,11 +26,11 @@ Phenikaa WebGIS là ứng dụng web tra cứu địa điểm trong khuôn viên
 
 Kiến trúc: SPA React/TypeScript + Leaflet, API Fastify/TypeScript, PostgreSQL 16/PostGIS 3.4. Frontend gọi HTTP JSON/GeoJSON qua `/api`; backend truy vấn DB bằng `pg`; ảnh lưu thư mục tĩnh; tile/imagery tải từ bên ngoài. OSM/Overpass được truy cập bởi script import, không phải lúc người dùng tìm route.
 
-Source hiện có map, search/filter, place details kèm ảnh upload/ảnh campus ánh xạ, CRUD admin, point/polygon editor, upload PNG/JPEG/WebP, API, PostGIS search, Dijkstra routing, dữ liệu gate/transfer/walkway và importer OSM. UI công khai ẩn mã/tầng trong panel chi tiết; origin chỉ chọn từ danh sách place, ứng dụng không truy cập vị trí GPS. Backend API routing vẫn nhận tọa độ. Ảnh tham khảo và GeoJSON GIS workspace được theo dõi; xem `docs/PLACE_IMAGE_MAPPING.md` và `docs/CAMPUS_GIS_DATA.md`. Có bộ dịch VI/EN nhưng README ghi UI hiện chỉ hỗ trợ tiếng Việt.
+Source hiện có map, search/filter, place details kèm ảnh upload/ảnh campus ánh xạ, CRUD admin, point/polygon editor, upload PNG/JPEG/WebP, API, PostGIS search, Dijkstra routing, dữ liệu gate/transfer/walkway và importer OSM. UI công khai ẩn mã/tầng trong panel chi tiết; origin chỉ chọn từ danh sách place, ứng dụng không truy cập vị trí GPS. Backend API routing vẫn nhận tọa độ. Ảnh tham khảo và GeoJSON GIS workspace được theo dõi; xem `docs/PLACE_IMAGE_MAPPING.md` và `docs/CAMPUS_GIS_DATA.md`. Có bộ dịch VI/EN; ngôn ngữ giao diện hiện hành cần đối chiếu trực tiếp khi chạy bản demo.
 
-`docs/TESTING.md` ghi kết quả 21-10-2026: backend 14 files/151 tests, frontend 11 files/89 tests, Playwright Chromium 9/9; typecheck/lint/build hai phía và migrations baseline+0001..0003 pass. Kết quả này là lịch sử được báo cáo, chưa chạy lại trong lượt rà soát. E2E dùng sample DB, không chứng minh OSM outdoor graph đã nạp hay tuyến đúng ngoài thực địa.
+Bằng chứng mới nhất trong `docs/TESTING.md`: backend 14 files/151 tests; frontend 12 files/94 tests; Playwright Chromium 17/17; typecheck/lint/build frontend và backend pass; baseline+migrations 0001–0003 pass trên DB E2E cô lập. Đây là kết quả ghi trong tài liệu kiểm thử sau commit thay đổi ảnh/map, không chạy lại ở lần cập nhật handover này. E2E dùng sample DB, không chứng minh OSM outdoor graph đã nạp hay tuyến đúng ngoài thực địa. Tài liệu cũng ghi 2026-10-21 là đợt cũ hơn: 151/89/9; không trộn hai mốc.
 
-Mức sẵn sàng: demo kỹ thuật có kiểm soát, với DB/dataset đã chuẩn bị và giới hạn được công bố; chưa có cơ sở tuyên bố production-ready hoặc chỉ đường thực địa đã kiểm chứng. Ưu điểm lớn: phân lớp tương đối rõ, PostGIS/schema/index, admin edit hình học và kiểm thử nhiều tầng. Hạn chế lớn: OSM graph và campus data chưa được xác minh, đường nối/fallback có thể thẳng, working tree dirty. API ghi không có auth nếu thiếu key trong development/test; config hiện từ chối khởi động khi `NODE_ENV=production` mà thiếu `ADMIN_API_KEY`.
+Mức sẵn sàng: demo kỹ thuật có kiểm soát, với DB/dataset đã chuẩn bị và giới hạn được công bố; chưa có cơ sở tuyên bố production-ready hoặc chỉ đường thực địa đã kiểm chứng. Ưu điểm lớn: phân lớp tương đối rõ, PostGIS/schema/index, admin edit hình học và kiểm thử nhiều tầng. Hạn chế lớn: OSM graph và campus data chưa được xác minh, đường nối/fallback có thể thẳng. Tracked working tree sạch ở HEAD được ghi nhận; ba mục chưa track cần chủ sở hữu phân loại. API ghi không có auth nếu thiếu key trong development/test; config hiện từ chối khởi động khi `NODE_ENV=production` mà thiếu `ADMIN_API_KEY`.
 
 Ưu tiên trước tiếp tục: (1) bảo toàn và rà soát thay đổi chưa commit; (2) kiểm chứng importer/graph chỉ trên DB disposable; (3) kiểm tra route với dữ liệu và khảo sát được duyệt; (4) bắt buộc cấu hình auth cho môi trường public; (5) chạy lại test đúng DB isolated và cập nhật tài liệu.
 
@@ -52,9 +52,9 @@ Migration/PostGIS                Pass được ghi nhận                 Chưa 
 Gate/transfer/corridor routing   Có code/data/test                  Chưa khảo sát thực địa
 OSM importer                    Có code; live chưa xác minh        Không chạy Overpass/importer
 OSM outdoor graph                Chưa xác minh                      E2E DB được ghi 0 node/edge
-Data chính thức/độ phủ           Chưa xác minh                      README còn nêu cần đồng bộ chính thức
+Data chính thức/độ phủ           Chưa xác minh                      Chưa có evidence nguồn chính thức/độ phủ đầy đủ
 Production deployment            Không đủ bằng chứng                Không có cấu hình/monitoring/backup xác nhận
-Working tree                    Dirty                              Nhiều modified/untracked files
+Working tree                    Clean tracked files; 3 untracked root entries  Không có tracked diff; các mục chưa track cần chủ sở hữu phân loại
 
 4. CÔNG NGHỆ VÀ CÔNG CỤ SỬ DỤNG
 ------------------------------------------------------------
@@ -247,7 +247,7 @@ KẾT QUẢ ĐƯỢC BÁO CÁO TRƯỚC ĐÂY — CHƯA CHẠY LẠI TRONG LẦN
 
 E2E route dùng sample DB, docs ghi 10 places, 11 legacy paths, 0 OSM nodes/edges. Một số UI/store tests dùng mocks; JSON test kiểm consistency chứ không khảo sát. Chưa có coverage %, benchmark, field tests, production test hay outage E2E đầy đủ.
 
-Xác minh tiếp nối commit `ef976eb` ngày 2026-10-22: backend typecheck/lint/build pass; integration **14 files/151 tests pass** trên PostGIS test service riêng; frontend typecheck/lint/build pass; Vitest **12 files/94 tests pass**; Playwright **17/17 Chromium E2E pass** trên E2E database riêng. Đã xác nhận ảnh detail, code/tầng ẩn, không đọc Geolocation API, map click không đặt origin, place routing, zoom/pan/sơ đồ và bounding boxes ở năm viewport. Admin/GeometryEditor/upload cũng pass. Playwright dùng config tạm ngoài repository ở cổng frontend 5174/backend 3100, ảnh upload test lưu trong thư mục tạm; test DB service đã dừng, volume test được giữ, database phát triển không bị nhắm tới. Không sinh screenshot khi toàn bộ E2E pass.
+`docs/TESTING.md` ghi kiểm chứng tiếp nối các commit gần nhất: backend typecheck/lint/build pass; integration **14 files/151 tests pass** trên PostGIS test service riêng; frontend typecheck/lint/build pass; Vitest **12 files/94 tests pass**; Playwright **17/17 Chromium E2E pass** trên E2E database riêng. Đã xác nhận ảnh detail, code/tầng ẩn, không đọc Geolocation API, map click không đặt origin, place routing, zoom/pan/sơ đồ và bounding boxes ở năm viewport. Admin/GeometryEditor/upload cũng pass. Playwright dùng config tạm ngoài repository ở cổng frontend 5174/backend 3100, ảnh upload test lưu trong thư mục tạm; test DB service đã dừng, volume test được giữ, database phát triển không bị nhắm tới. Không sinh screenshot khi toàn bộ E2E pass. Đây là bằng chứng tài liệu và test report, không phải lần chạy của handover.
 
 14. HẠ TẦNG, CẤU HÌNH VÀ TRIỂN KHAI
 ------------------------------------------------------------
@@ -287,8 +287,8 @@ HIGH — Độ chính xác thực địa chưa biết; connectors/fallback là �
 MEDIUM — Khi không có `ADMIN_API_KEY`, auth hook bỏ qua bảo vệ trong development/test. Tuy nhiên `backend/src/config/index.ts` hiện dừng khởi động nếu `NODE_ENV=production` mà thiếu key. Đây là startup guard đã có, không phải kết luận production chắc chắn bị mở. Cần xác minh deployment đặt đúng `NODE_ENV`, key được cấp an toàn và negative tests vẫn bao phủ; không dùng placeholder trước public deployment.
 HIGH — Importer paths TRUNCATE graph; places importer xóa/thay sample/OSM. Chỉ chạy disposable/backup và approval.
 MEDIUM — Runtime graph hai chiều, không đầy đủ one-way/access profile. Có thể đề xuất đường sai; kiểm tra tags/direction và field.
-MEDIUM — Working tree dirty + GIS files chưa track gây rủi ro mất/nhầm nguồn. Inventory, review và chọn lọc commit; tuyệt đối không reset.
-MEDIUM — Test chưa tái chạy ở lượt này, code đang modified; chạy suite trên isolated service trước merge/demo.
+MEDIUM — Có ba mục chưa track ở root (JPG, lockfile, thư mục Unicode) cần chủ sở hữu xác nhận, trong đó folder GIS/ảnh cần kiểm tra nguồn và ý định publish. Các GeoJSON đã được commit ở `96362d9`; không đồng nhất chúng với ba mục chưa track. Không reset hoặc xóa.
+MEDIUM — Trong lượt cập nhật handover không chạy lại test; kết quả gần nhất được ghi trong `docs/TESTING.md`. Chạy lại suite trên isolated service tại commit demo/nộp.
 MEDIUM — Tile/Overpass external dependency; outage/rate limit/terms; có attribution/contingency.
 MEDIUM — Không có bằng chứng production backup/deploy/monitoring; cần runbook trước triển khai.
 LOW/MEDIUM — Upload orphan files khi place xóa; policy ownership/ref-count trước cleanup.
@@ -355,7 +355,7 @@ Gate/transfer? Các JSON campus khai báo cạnh/access và ghép trong graph; m
 `fallback=true`? Đường chim bay hai điểm khi không có route graph khả dụng; không phải đường đi bộ.
 `fallback=false` chứng minh gì? Không vào nhánh fallback; không xác nhận connector/dữ liệu là thực địa chính xác.
 OSM/Overpass? Nguồn import theo bbox, không realtime; cần attribution OSM/ODbL và network.
-Test nào đã chạy? Docs ghi 151 backend/89 frontend/9 Chromium trên môi trường cô lập; chưa chạy lại trong lần rà soát. E2E routing sample; 0 OSM graph theo báo cáo DB.
+Test nào đã chạy? `docs/TESTING.md` ghi mới nhất 151 backend/94 frontend/17 Chromium trên môi trường cô lập; handover không chạy lại trong lần rà soát. E2E routing sample; 0 OSM graph theo báo cáo DB. Số cũ 151/89/9 thuộc lượt trước ngày 21-10-2026.
 Bảo vệ dữ liệu? Isolated test DB/volume và URL guard; parameterized SQL/constraints. Thiếu `ADMIN_API_KEY` bỏ auth hook ở dev/test; production config hiện fail startup nếu thiếu, nhưng cần xác minh biến môi trường triển khai thực tế.
 Geometry editor? Click/drag point/polygon; PostGIS validity. E2E báo cáo invalid polygon rollback; không chứng minh tọa độ đúng.
 Còn chưa xác minh? Import/live OSM graph, field accuracy, coverage, production deployment/security/backup/performance.
@@ -383,13 +383,213 @@ API docs: `docs/API.md`, runtime `/docs` khi Swagger bật.
 
 28. DANH MỤC BẰNG CHỨNG VÀ NHỮNG ĐIỂM CHƯA XÁC MINH
 ------------------------------------------------------------
-Files đã đọc trực tiếp: root README; backend/frontend package manifests; backend app, config-adjacent routes/services/routing/upload/auth/importers; init.sql + migrations 0001–0003; Vitest/Playwright configs, globalSetup, map E2E; frontend API/admin API/GeometryEditor; Docker Compose; docs ARCHITECTURE, DATABASE, TESTING, LIMITATIONS.
+Files đã đọc trực tiếp gồm handover cũ, `docs/TESTING.md`, `docs/PROJECT_REPORT.md`, `docs/PLACE_IMAGE_MAPPING.md` (và source/frontend mapping), frontend detail panel/map controls/route panel/store, manifests và source paths được tham chiếu trong các mục trước. Không thực hiện đọc secrets hoặc chạy test. `my-node-project/README.md` được liệt kê trong repository nhưng công cụ đọc file không trả nội dung; vì vậy các khẳng định hiện hành không được dựa độc lập vào nội dung README.
 
-Kết quả test/typecheck/lint/build/migration/DB counts/diff check: chỉ có trong `docs/TESTING.md`, chưa chạy lại. Chưa xác minh: installed runtime versions, trạng thái database/service, CI remote, production, Overpass output hiện hành, field accuracy/coverage, benchmark/coverage metric, backup/restore. Không đọc secrets. Working tree có nhiều modified/untracked files; tài liệu không thể kết luận chúng đã được commit/review.
+Kết quả test/typecheck/lint/build/migration/DB counts: theo `docs/TESTING.md`, không chạy lại khi sửa handover. Chưa xác minh: installed runtime versions, trạng thái database/service, CI remote, production, Overpass output hiện hành, field accuracy/coverage, benchmark/coverage metric, backup/restore. Không đọc secrets. Git status hiện có ba mục untracked đã nêu, không có tracked modifications.
 
 29. HƯỚNG DẪN CẬP NHẬT TÀI LIỆU BÀN GIAO
 ------------------------------------------------------------
 Cập nhật khi đổi API/schema/routing/data/security/deployment hoặc có test mới. Ghi ngày, môi trường, DB target/dataset và command/output; phân biệt source inspection, executed unit/integration, browser E2E, lịch sử report, inference và unknown. GIS update phải có provenance/license/timestamp/bbox/CRS và QA; không công bố secrets. Kiểm tra paths/scripts tồn tại và giữ nguyên user work trước khi phát hành bản mới.
+
+30. HƯỚNG DẪN SỬ DỤNG TÀI LIỆU ĐỂ VIẾT BÁO CÁO ĐỒ ÁN
+------------------------------------------------------------
+Mục đích: phần dưới đây là bản đồ nội dung và bằng chứng, không phải văn bản báo cáo nộp nguyên xi. Cấu trúc sáu chương chỉ là đề xuất; nếu khoa/giảng viên có mẫu chính thức thì ưu tiên mẫu đó. Mỗi chương cần phân biệt điều mã nguồn chứng minh, điều test chứng minh trong môi trường cụ thể, và điều nhóm tự khảo sát/đánh giá phải cung cấp. Các câu [CẦN BỔ SUNG] không được tự điền bằng suy đoán.
+
+30.1 CHƯƠNG 1 — TỔNG QUAN ĐỀ TÀI
+A. Mục đích: trình bày bối cảnh bài toán, vấn đề, mục tiêu, đối tượng sử dụng dự kiến, phạm vi và phương pháp/giới hạn của đồ án.
+B. Đề mục gợi ý: 1.1 Bối cảnh tra cứu địa điểm campus; 1.2 Phát biểu bài toán; 1.3 Mục tiêu tổng quát/cụ thể; 1.4 Đối tượng và phạm vi; 1.5 Phương pháp thực hiện thực tế; 1.6 Bố cục báo cáo.
+C. Dữ kiện xác nhận: ứng dụng WebGIS tập trung vào danh bạ địa điểm có vị trí, hiển thị tương tác, tìm/lọc, chi tiết, tuyến giữa địa điểm campus được hỗ trợ và công cụ quản trị. Sinh viên/khách/quản trị viên là nhóm người dùng hợp lý theo chức năng, chưa phải kết quả khảo sát người dùng. Không định vị tự động bằng GPS; không cho đặt điểm đi bằng cách click vùng trống.
+D. Nguồn: `README.md` ở root nếu có; `docs/PROJECT_REPORT.md`, `docs/LIMITATIONS.md`, `frontend/src/App.tsx`, `frontend/src/components/Routing/RoutePanel.tsx`.
+E. Tài liệu: `docs/USER_GUIDE.md`, `docs/DEMO_CHECKLIST.md`, `docs/PROJECT_REPORT.md`.
+F. Hình/bảng: sơ đồ phạm vi khuôn viên được nhóm xác nhận; bảng mục tiêu/phạm vi/ngoài phạm vi; ảnh giao diện bản đồ (chụp thật sau khi chạy).
+G. Nhóm tự bổ sung: lý do chọn đề tài theo hướng dẫn học phần; bối cảnh/địa bàn và quyền sử dụng dữ liệu; khảo sát/phỏng vấn nếu đã thực hiện, có mẫu/thời gian/kết quả; phân công và đóng góp cá nhân; thời gian, tiêu chí nghiệm thu chính thức [CẦN BỔ SUNG].
+H. Không khẳng định đã khảo sát nhu cầu, được trường giao yêu cầu, đã triển khai dùng thật, hoặc tăng hiệu quả định lượng nếu thiếu biên bản/số liệu.
+I. Văn phong: dùng cách diễn đạt có giới hạn như “hệ thống hướng tới hỗ trợ tra cứu…”; tách động cơ hợp lý khỏi nhu cầu đã được xác thực. Mô tả bài toán cụ thể hơn “ứng dụng bản đồ”: quản lý/tra cứu thông tin địa điểm campus gắn với dữ liệu không gian.
+
+30.2 CHƯƠNG 2 — CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ
+A. Mục đích: giới thiệu khái niệm WebGIS, dữ liệu vector/GeoJSON, hệ tọa độ, cơ sở dữ liệu không gian, kiến trúc web và lý thuyết đồ thị/đường đi ngắn nhất cần cho hệ thống.
+B. Đề mục: WebGIS và bản đồ web; GeoJSON/CRS; PostgreSQL/PostGIS; REST/JSON; React/TypeScript/Vite; Leaflet; Fastify; Zustand; Dijkstra và Haversine; OSM/Overpass; Docker và kiểm thử.
+C. Sự kiện: React dựng giao diện component; TypeScript khai báo kiểu; Vite phục vụ và build SPA; Leaflet/React-Leaflet vẽ bản đồ; Zustand giữ trạng thái UI; Fastify cung cấp API; PostgreSQL/PostGIS lưu thuộc tính/hình học; SQL migration quản lý phiên bản schema; GeoJSON là định dạng trao đổi; importer gọi Overpass theo lệnh riêng; router tự cài đặt Dijkstra và khoảng cách địa lý. Vitest kiểm thử unit/integration/component; Playwright mô phỏng trình duyệt. Docker Compose tách dịch vụ DB local/test. Đây là giải thích phù hợp trách nhiệm đang có, không phải bằng chứng tài liệu về động cơ lịch sử chọn từng công nghệ.
+D. Nguồn: `backend/package.json`, `frontend/package.json`, `backend/src/modules/routing/routing.service.ts`, `backend/src/db/migrate.ts`, `docker-compose*.yml`, configs Vitest/Playwright.
+E. Tài liệu: `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/API.md`, `docs/TESTING.md`, `docs/CAMPUS_GIS_DATA.md`.
+F. Hình/bảng: bảng công nghệ–vai trò–lợi ích–giới hạn; sơ đồ client/API/DB; hình luồng GeoJSON và tọa độ.
+G. Nhóm bổ sung: phiên bản cụ thể đã dùng khi thực nghiệm (không chỉ version range), tài liệu chính thức/citation và tiêu chí đánh giá lựa chọn [CẦN BỔ SUNG].
+H. Không gán quyết định lựa chọn cho nhóm nếu không có nhật ký/đề cương; không nói OSM là dữ liệu chính thức của trường; không gọi map tiles là dữ liệu tự xây dựng.
+I. Trình bày khái niệm ngắn gọn trước khi mô tả cách công nghệ cụ thể được dùng; chỉ đưa thuật toán/lý thuyết thực sự liên quan.
+
+30.3 CHƯƠNG 3 — PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+A. Mục đích: mô hình hóa chức năng, luồng dữ liệu, kiến trúc và lưu trữ.
+B. Đề mục: tác nhân và use case; yêu cầu chức năng/phi chức năng; kiến trúc; phân rã module; API; ERD; thiết kế GIS; thiết kế routing; phân quyền.
+C. Dữ kiện: các chức năng nguồn được mô tả ở mục 7; frontend/API/PostGIS tách lớp; API places/categories/routing/uploads; DB có categories, places, campus_paths, campus_routing_nodes/edges, schema_migrations; geometry SRID 4326; route đầu vào tại API là lat,lng nhưng GeoJSON là [lng,lat]. Admin dùng key header theo cấu hình, không có bằng chứng người dùng/role nhiều cấp.
+D. Nguồn: `backend/sql/init.sql`, `backend/sql/migrations/`, `backend/src/app.ts`, routes/schema/services, `frontend/src/store/useStore.ts`, `docs/API.md`.
+E. Tài liệu: `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/API.md`, `docs/LIMITATIONS.md`.
+F. Hình/bảng: use-case; architecture; sequence search/route; ERD; bảng API; flow admin geometry.
+G. Nhóm bổ sung: yêu cầu chính thức, tiêu chí nghiệm thu, actor thực tế, quyết định thiết kế có biên bản [CẦN BỔ SUNG].
+H. Không vẽ quan hệ DB chưa được xác nhận; không mô tả RBAC hoặc authentication production nếu không có code/config chứng minh.
+I. Dùng ký hiệu UML nhất quán. ERD phải lấy từ migration/init SQL chứ không suy từ tên file; phân biệt bảng runtime và JSON cấu hình.
+
+30.4 CHƯƠNG 4 — XÂY DỰNG VÀ TRIỂN KHAI HỆ THỐNG
+A. Mục đích: giải thích hiện thực hóa các thiết kế, công nghệ, GIS pipeline, UI, API và quản trị.
+B. Đề mục: môi trường kiến trúc; frontend; backend/API; database/migration; xử lý dữ liệu; routing; GeometryEditor/upload; hướng dẫn chạy demo.
+C. Dữ kiện: xem mục 4–14 và pseudocode ở mục 11. Router ưu tiên OSM edges nếu có, nếu không dùng campus_paths legacy; JSON gate/transfer/walkways được ghép theo logic service. Frontend chỉ chọn place làm origin/destination trong giao diện hiện hành.
+D. Nguồn: các source paths trong mục 25; ghi cụ thể file/component khi trình bày từng tính năng.
+E. Tài liệu: `docs/DEVELOPMENT.md`, `docs/USER_GUIDE.md`, `docs/CAMPUS_GIS_DATA.md`, `docs/PLACE_IMAGE_MAPPING.md`.
+F. Hình/bảng: sơ đồ import; sequence request; flow Dijkstra; ảnh app và admin do nhóm chụp runtime; bảng trường dữ liệu/API.
+G. Nhóm bổ sung: môi trường chạy thực tế, dữ liệu nạp, lệnh và cấu hình đã dùng (không kèm secret), lỗi và cách xử lý, phiên bản/commit demo [CẦN BỔ SUNG].
+H. Không gọi GeoJSON workspace là dữ liệu runtime tự động nạp; không nói importer đã chạy chỉ vì source tồn tại; không tuyên bố ảnh đầy đủ.
+I. Mô tả theo luồng input → xử lý → output, tránh chỉ liệt kê thư viện. Nêu rõ ngoại lệ/guard khi có.
+
+30.5 CHƯƠNG 5 — KIỂM THỬ VÀ ĐÁNH GIÁ
+A. Mục đích: chứng minh các hành vi đã kiểm tra trong môi trường và dữ liệu xác định; đánh giá hạn chế.
+B. Đề mục: môi trường; unit/component; API/DB integration; E2E; test cases; kết quả; đánh giá GIS và UX; giới hạn validity.
+C. Bằng chứng ghi trong `docs/TESTING.md`: backend 14 files/151 tests; frontend 12 files/94; Playwright 17/17 Chromium; typecheck/lint/build pass; migrations trên E2E DB cô lập. Có regression tests GPS removed/map click origin/photo mapping/control layout. Đây là kết quả lịch sử tài liệu, không phải test chạy khi sửa handover. E2E dùng 10 sample places, 11 legacy paths, 0 OSM nodes/edges theo read-only inspection ghi trong docs.
+D. Nguồn: test files backend/frontend/e2e và `docs/TESTING.md`.
+E. Tài liệu: `docs/TESTING.md`, `docs/AUDIT_REPORT.md`, `docs/DEMO_CHECKLIST.md`.
+F. Hình/bảng: bảng test objective/input/expected/actual/environment/result/limit; sơ đồ test layers; ảnh chạy thật nếu cần; kết quả terminal/log có ngày.
+G. Nhóm bổ sung: ngày chạy lại tại commit nộp, OS/browser/Node/DB version, dataset ID, test artifacts, lỗi còn tồn tại, usability/field evaluation nếu thật sự tiến hành [CẦN BỔ SUNG].
+H. Không gọi test count là coverage; không đồng nhất pass route với đúng ngoài thực địa; không gộp test mock với test DB/E2E.
+I. Mỗi test case phải nói input/scenario và tiêu chí pass; ghi rõ lịch sử hay mới thực hiện, không lấy “build pass” làm bằng chứng tính chính xác.
+
+30.6 CHƯƠNG 6 — KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+A. Mục đích: tổng kết mục tiêu đạt được có đối chiếu phạm vi; nêu giới hạn; đề xuất hướng tiếp theo khả thi.
+B. Đề mục: kết quả theo mục tiêu; giới hạn; đóng góp đã xác minh; hướng mở rộng; kết luận.
+C. Có thể kết luận đã xây dựng nguyên mẫu WebGIS có tra cứu bản đồ, quản trị place/geometry, upload ảnh và place-to-place walking route trên dữ liệu test. OSM outdoor graph, dữ liệu chính thức, tuyến thực địa, usability, accessibility, production chưa được chứng minh.
+D. Nguồn: mục 16–19, test report, code và tài liệu hạn chế.
+E. Tài liệu: `docs/LIMITATIONS.md`, `docs/PROJECT_REPORT.md`, `docs/AUDIT_REPORT.md`.
+F. Bảng đối chiếu mục tiêu–kết quả–bằng chứng–hạn chế; roadmap có điều kiện.
+G. Nhóm bổ sung: mục tiêu phê duyệt, kết quả thực nghiệm do nhóm thực sự thu thập, đóng góp mỗi thành viên, xác nhận người hướng dẫn [CẦN BỔ SUNG].
+H. Không dùng phần trăm hoàn thành không đo; không tuyên bố deployed/production-ready/được người dùng đánh giá tốt nếu không có chứng cứ.
+I. Kết luận ngắn gọn, gắn từng nhận định với bằng chứng và phạm vi dữ liệu.
+
+31. DANH MỤC HÌNH VẼ, SƠ ĐỒ VÀ BẢNG CẦN CHUẨN BỊ
+------------------------------------------------------------
+31.1 Sơ đồ kiến trúc tổng thể — Chương 3; minh họa browser → React/Leaflet → Fastify → PostGIS, đường tile ngoài, và importer Overpass chạy riêng. Vẽ mới từ source/config; xác nhận mọi endpoint và không vẽ Overpass như request runtime.
+31.2 Use-case diagram — Chương 3; người xem bản đồ/tìm địa điểm/xem chi tiết/chọn tuyến; admin đăng nhập theo key/CRUD/chỉnh sửa geometry/upload. Tạo mới; nhóm xác nhận actor/quyền theo phạm vi, không thêm GPS.
+31.3 Sequence tìm kiếm — Chương 3/4; UI → API search → service/SQL → PostGIS → kết quả; lấy `SearchBar`, `useStore`, `api.ts`, routes/service. Tạo mới và đối chiếu code.
+31.4 ERD — Chương 3; các bảng và quan hệ thật. Tạo mới từ `backend/sql/init.sql` và migrations; biểu diễn `campus_paths` FK code theo DDL thật, node/edge OSM theo FK. Kiểm chứng nullability/cardinality trước đưa vào.
+31.5 Flowchart routing — Chương 3/4; validate, nạp/cache graph, candidate/snap, Dijkstra, reconstruct/connector, fallback/meta. Tạo mới từ `routing.service.ts`; đánh dấu straight-line fallback khác route graph.
+31.6 Pipeline GIS — Chương 4; Overpass/importer → kiểm tra dữ liệu → DB; GeoJSON workspace riêng. Tạo mới; xác nhận importer thực chạy và nguồn snapshot trước khi biểu diễn như kết quả.
+31.7 Ảnh bản đồ tổng quan — Chương 4; phải chụp ứng dụng đang chạy, ghi commit/dataset/viewport/ngày. Chưa có ảnh minh chứng được xác nhận trong repo.
+31.8 Ảnh tìm kiếm và chi tiết có ảnh — Chương 4; chứng minh UI và photo mapping. Chụp runtime; chọn record cụ thể và attribution/nguồn ảnh.
+31.9 Ảnh route place-to-place — Chương 4/5; route, origin/destination, chú thích fallback/off-network. Chụp runtime trên dataset đã ghi rõ; không dùng ảnh như xác nhận thực địa.
+31.10 Admin CRUD, GeometryEditor, upload — Chương 4; dùng DB/test records, không hiển thị admin secret; ảnh cần nhóm tự chụp. Kiểm tra không có dữ liệu cá nhân/credential.
+31.11 Bảng yêu cầu và bảng kiểm thử — Chương 3/5; truy về source/test ID và evidence ngày chạy. Tạo mới; test numbers hiện có là lịch sử docs.
+31.12 Bảng đánh giá dữ liệu GIS/giới hạn — Chương 5/6; nguồn, thời điểm, CRS, số lượng, coverage/connectivity, field-check status. Hiện thiếu xác nhận OSM runtime/field; để [CẦN BỔ SUNG], không tạo số giả.
+31.13 Quy ước quản lý: lập danh mục hình/bảng trước, đánh số theo chương hoặc theo mẫu chính thức; một người điều phối caption, nguồn, phiên bản dữ liệu và tham chiếu trong nội dung. Không sửa screenshot làm thay đổi ý nghĩa; có thể che bí mật nhưng ghi rõ biên tập.
+
+32. BẰNG CHỨNG KỸ THUẬT, TÀI LIỆU THAM KHẢO VÀ LIÊM CHÍNH HỌC THUẬT
+------------------------------------------------------------
+32.1 Phân biệt nguồn gốc: code UI/API/schema/routing tests do dự án chứa là hiện thực của repository; React, TypeScript, Vite, Leaflet, Fastify, PostgreSQL/PostGIS, Vitest, Playwright, Docker là công nghệ bên ngoài; OSM/Overpass là nguồn dữ liệu ngoài khi importer sử dụng; ảnh campus có provenance chưa được tài liệu hiện hành xác định đầy đủ. Không trình bày thư viện hoặc dataset ngoài như sản phẩm do nhóm tạo.
+32.2 Liên kết tài liệu chính thức nên dùng và trích dẫn theo quy chuẩn trường:
+React: https://react.dev/ (documentation chính thức).
+TypeScript: https://www.typescriptlang.org/docs/.
+Vite: https://vite.dev/guide/.
+Leaflet: https://leafletjs.com/reference.html; React-Leaflet: https://react-leaflet.js.org/.
+Fastify: https://fastify.dev/docs/latest/.
+PostgreSQL: https://www.postgresql.org/docs/; PostGIS: https://postgis.net/documentation/.
+GeoJSON RFC 7946: https://www.rfc-editor.org/rfc/rfc7946.
+OpenStreetMap copyright/attribution: https://www.openstreetmap.org/copyright; Overpass API documentation: https://wiki.openstreetmap.org/wiki/Overpass_API.
+Vitest: https://vitest.dev/guide/; Playwright: https://playwright.dev/docs/intro; Docker Compose: https://docs.docker.com/compose/.
+Dijkstra: [CẦN BỔ SUNG TÀI LIỆU THAM KHẢO] — chọn sách/bài báo/giáo trình có thông tin xuất bản xác minh được; không tạo citation giả.
+32.3 Khi sử dụng OSM: đưa attribution phù hợp trên bản đồ và báo cáo; mô tả dữ liệu OpenStreetMap contributors, giấy phép ODbL và nghĩa vụ áp dụng theo dạng sử dụng. Ghi ngày tải/import, bbox, query/filter, nguồn, phiên bản hoặc snapshot/checksum nếu có. Kiểm tra điều khoản tile provider riêng; OSM attribution không tự động cấp quyền mọi tile/ảnh nền.
+32.4 Ảnh: với từng file, lưu tác giả/nguồn, ngày nhận/chụp, license/permission, đối tượng, quan hệ place-code và việc crop/chỉnh sửa. `docs/PLACE_IMAGE_MAPPING.md` mô tả mapping file ảnh campus trong frontend; mapping kỹ thuật không tự chứng minh quyền sử dụng hay ảnh đúng hiện trạng. Nếu chưa rõ provenance, không xuất bản ảnh trong báo cáo trước khi nhóm xác minh.
+32.5 Bằng chứng: ưu tiên source/test có đường dẫn, kết quả command có ngày/commit/môi trường, DB counts read-only, screenshot thật và dữ liệu có provenance. Ghi rõ mock, sample, fixture, test DB, runtime thật và field survey là các cấp chứng cứ khác nhau. Không đưa secrets, tokens, connection strings.
+
+33. PHỐI HỢP VIẾT BÁO CÁO VÀ KIỂM SOÁT NHẤT QUÁN
+------------------------------------------------------------
+33.1 Phân công theo mảng/chương (mô hình đề xuất, không giả định thành viên):
+- Nhóm trưởng/biên tập: giữ mẫu chính thức, mục lục, thuật ngữ, bảng bằng chứng, tiến độ và bản hợp nhất.
+- Chương 1/requirements: phụ trách bối cảnh/phạm vi; nhận thông tin khảo sát, tiêu chí học phần từ nhóm; không suy ra nhu cầu từ tính năng.
+- Chương 2: phụ trách khái niệm/citation công nghệ; đối chiếu phiên bản và nguồn chính thức.
+- Chương 3: phối hợp backend + database + frontend; chốt API contract, use-case, architecture, ERD.
+- Chương 4: frontend/admin, backend/API, GIS/routing chia thành tiểu mục; một người rà soát tích hợp luồng end-to-end.
+- Chương 5: QA phụ trách ma trận case và evidence; GIS phụ trách giới hạn dataset; chỉ chốt số sau khi chạy lại đúng commit nộp.
+- Chương 6: biên tập cùng toàn nhóm; đối chiếu mục tiêu và bảng kết quả, không tự nâng mức kết luận.
+33.2 Thứ tự phụ thuộc: chốt thuật ngữ/API/schema/routing và dataset manifest trước khi hoàn tất chương 3–4; chốt test environment và artifact trước chương 5; chụp screenshot trên cùng build/dataset; chương 1/6 nên được rà lại sau khi phạm vi/kết quả cuối đã thống nhất.
+33.3 Thuật ngữ chuẩn: “địa điểm (place)”; “điểm đi/điểm đến” là campus place được chọn trên giao diện hiện hành; “nút/cạnh đồ thị”; “đoạn nối ngoài mạng (off-network connector)”; “fallback đường thẳng” không đồng nghĩa tuyến đi bộ; “sample data” không đồng nghĩa dữ liệu chính thức; “GeoJSON [kinh độ, vĩ độ]”; Leaflet API thường nhận `[vĩ độ, kinh độ]`.
+33.4 Tránh trùng lặp: chương 2 giải thích khái niệm chung; chương 3 mô hình thiết kế của hệ thống; chương 4 mô tả hiện thực; chương 5 chứng minh bằng test; chương 6 tổng kết. Dùng tham chiếu chéo thay vì lặp toàn bộ thuật toán/schema.
+33.5 Điều phối hình/bảng: tạo một danh mục chung, chỉ định người tạo/nguồn/phiên bản; caption diễn giải điều hình chứng minh; số hình/bảng cập nhật sau hợp nhất. Không dùng screenshot từ commit khác với kết quả test mà không chú thích.
+33.6 Đối chiếu kết quả: lập bảng test có ngày, commit, command, môi trường, dataset, số pass/fail/skip, artifacts; nếu chạy lại khác kết quả, báo cáo kết quả mới và nêu nguyên nhân, không chọn số đẹp hơn. Không gộp test unit với E2E.
+33.7 Fact-check trước nộp: mỗi câu định lượng có nguồn; mỗi khẳng định chức năng có source và test/runtime evidence; mỗi dữ liệu địa lý có provenance; mọi “đã khảo sát/triển khai/đánh giá” phải có hồ sơ; các mục chưa xác minh được viết rõ là giới hạn.
+
+34. MA TRẬN TRẠNG THÁI VÀ KHOẢNG TRỐNG
+------------------------------------------------------------
+Hạng mục | Trạng thái dựa trên bằng chứng | Cách diễn đạt an toàn
+Tìm kiếm/lọc/place detail | Có source và test frontend/backend; E2E ghi nhận | Đã triển khai, test trong môi trường ghi rõ
+Ảnh chi tiết | Mapping code → ảnh trong frontend/public; test mapping/detail | Có ảnh tham khảo cho các mã cụ thể; chưa kết luận độ phủ hay quyền ảnh
+Place-to-place routing | UI dropdown place; API/algorithm/tests; E2E pass | Đã kiểm tra route trên sample legacy graph
+GPS / origin bằng click map | Đã loại bỏ khỏi UI; regression tests không thấy geolocation/map-click origin | Không thuộc chức năng hiện hành
+Map controls/responsive | E2E control positions ở năm viewport được ghi nhận | Regression UI được kiểm tra ở các viewport trong test; không suy rộng accessibility/browser matrix
+Admin CRUD/geometry/upload | Source và Playwright test-only pass | Đã test trên môi trường/database cô lập; security/production chưa được chứng minh
+OSM import | Code hiện có; không chạy importer ở lượt này; raw reproducibility cần bổ sung | Có công cụ import; dữ liệu/đồ thị đang dùng phải xác minh riêng
+OSM outdoor graph | E2E DB report ghi 0 node/edge | Chưa chứng minh runtime graph OSM đã nạp
+Độ chính xác thực địa | Không có field survey | Chưa xác minh; không gọi route field-accurate
+Production deployment | Không có evidence deployment/backup/monitoring | Chưa có căn cứ tuyên bố sẵn sàng production
+Coverage/performance/accessibility | Không có số đo trong tài liệu test | Chưa đo/chưa đánh giá
+Git/GitHub | HEAD e4cdaae == origin/main; có ba mục root untracked | Các commit gần nhất đồng bộ theo ref hiện có; không kết luận về nơi deploy hoặc các file untracked đã publish
+
+35. CHECKLIST RÀ SOÁT BÁO CÁO TRƯỚC KHI NỘP
+------------------------------------------------------------
+[ ] Đã lấy mẫu báo cáo chính thức của trường/giảng viên; tên đề tài, chương và format thống nhất.
+[ ] Phạm vi GPS và map-click origin ghi là đã loại bỏ; chỉ place-to-place routing mô tả là UI hiện hành.
+[ ] Mỗi bảng/hình có nguồn; screenshot do nhóm chụp từ ứng dụng thật, ghi build/dataset và không lộ key.
+[ ] ERD, API, field và quan hệ được đối chiếu với SQL/routes hiện tại.
+[ ] CRS/SRID, thứ tự tọa độ và đơn vị khoảng cách ghi đúng; không trộn Leaflet và GeoJSON coordinate order.
+[ ] Dijkstra trình bày đúng edge cost/graph; connector và fallback được phân biệt; không gọi straight-line là đường đi bộ.
+[ ] Số test gắn với `docs/TESTING.md`, commit/ngày, môi trường; cập nhật nếu nhóm chạy lại.
+[ ] Không dùng test pass để tuyên bố độ chính xác OSM/field, performance, coverage, usability hoặc production.
+[ ] Sample/OSM/manual/official data được phân biệt; provenance, giấy phép, attribution, ảnh có quyền dùng được xác minh.
+[ ] Không bịa khảo sát, phỏng vấn, số liệu người dùng, yêu cầu trường, phân công, đóng góp hoặc nghiệm thu.
+[ ] Mỗi claim “đã triển khai/đã kiểm thử/đã đánh giá” có source hoặc artifact tương ứng.
+[ ] Đã kiểm tra mọi [CẦN BỔ SUNG], ngày tháng, phiên bản, citation và bibliography; không để placeholder trong bản nộp.
+[ ] Thuật ngữ, số chương, caption, cross-reference, chính tả tiếng Việt và định dạng đã hợp nhất.
+[ ] Không có secrets, thông tin cá nhân, URL credentials hoặc cấu hình local trong phụ lục/screenshot.
+
+36. PHỤ LỤC BỔ SUNG: TÓM TẮT API, SCHEMA VÀ LUỒNG CHẠY
+------------------------------------------------------------
+API chính (đối chiếu `docs/API.md` và source trước khi chụp/report):
+GET /health; GET /health/ready.
+GET /api/categories; GET /api/categories/with-counts.
+GET /api/places với paging/filter/search/bbox/floor/has_polygon/sort/order theo schema.
+GET /api/places/geojson; GET /api/places/search?q=&limit=&category=.
+GET /api/places/nearby?lat=&lng=&radius=&limit=&category=.
+GET /api/places/:id; POST /api/places; PATCH /api/places/:id; DELETE /api/places/:id.
+POST /api/uploads; POST /api/auth/verify.
+GET /api/routing?from=lat,lng&to=lat,lng&mode=walk. API nhận tọa độ, nhưng giao diện hiện yêu cầu chọn địa điểm được hỗ trợ; API contract không chứng minh UI cho phép arbitrary coordinates.
+
+Quan hệ dữ liệu theo DDL cần trình bày:
+categories (id PK) 1 — 0..N places; places.category_id FK nullable, ON DELETE SET NULL.
+places.code được dùng cho manual campus paths/access reference theo logic/schema tương ứng; cần phản ánh chính xác constraint DDL.
+campus_paths lưu cặp source/target place-code, distance/name/LineString; đây là legacy/sample routing structure.
+campus_routing_nodes (OSM node id PK) 1 — N campus_routing_edges qua from_node_id/to_node_id, FK cascade delete.
+schema_migrations lưu phiên bản migration.
+Không có FK thể hiện JSON gate/transfer/walkways như bảng quan hệ; các dữ liệu này là file cấu hình riêng.
+
+Sơ đồ request rút gọn:
+Người dùng → React component → Zustand action → frontend service fetch('/api/...') → Vite proxy (development) → Fastify route/schema → module service/SQL → pg pool → PostgreSQL/PostGIS → JSON/GeoJSON → store/UI/Leaflet layer.
+Importer là luồng riêng do operator chạy: Overpass → parser/filter → transaction DB; không phải luồng tìm tuyến realtime từ browser.
+
+37. NHỮNG THÔNG TIN NHÓM CẦN BỔ SUNG THỦ CÔNG
+------------------------------------------------------------
+[CẦN BỔ SUNG] Mẫu/đề cương chính thức, yêu cầu trình bày và tiêu chí chấm của trường/giảng viên.
+[CẦN BỔ SUNG] Lý do chọn đề tài được nhóm thống nhất; phạm vi địa lý campus và nhóm người dùng đã xác thực.
+[CẦN BỔ SUNG] Khảo sát/phỏng vấn/quan sát thực tế nếu có: ngày, đối tượng, cách lấy mẫu, câu hỏi, dữ liệu thô và kết quả; nếu không có thì không nêu đã khảo sát.
+[CẦN BỔ SUNG] Nguồn, quyền, thời điểm và độ chính xác của từng campus photo; giấy phép/attribution ảnh.
+[CẦN BỔ SUNG] Nguồn dữ liệu địa điểm/geometry được chấp thuận; bản snapshot OSM, timestamp, bbox, license, số lượng và QA; xác nhận dữ liệu campus nào là chính thức.
+[CẦN BỔ SUNG] Có hay không việc chạy OSM importer sau khi handover này được cập nhật; DB nào, graph counts, connectivity và cách tái lập.
+[CẦN BỔ SUNG] Biên bản kiểm tra tuyến ngoài thực địa: tuyến, ngày, phương pháp, thiết bị, sai số, rào cản/accessibility và người xác nhận; không suy từ ảnh sơ đồ.
+[CẦN BỔ SUNG] Kết quả chạy lại suite trên commit cuối cùng của báo cáo, OS/browser/Node/PostGIS versions, test logs/artifacts và lỗi còn lại.
+[CẦN BỔ SUNG] Chỉ số performance, coverage, accessibility hoặc usability nếu nhóm muốn đưa vào; phải định nghĩa phương pháp, môi trường và ngưỡng trước đo.
+[CẦN BỔ SUNG] Triển khai/deployment URL, cấu hình bảo mật, backup/restore/monitoring nếu thật sự đã triển khai; không đưa secrets.
+[CẦN BỔ SUNG] Đóng góp cá nhân, phân công, thời gian thực hiện, sự cho phép của trường và nghiệm thu/nhận xét hướng dẫn nếu có hồ sơ.
+[CẦN BỔ SUNG] Tài liệu thuật toán Dijkstra và các tiêu chuẩn trích dẫn/bibliography do trường yêu cầu.
+[CẦN BỔ SUNG] Ảnh chụp thật cho bản đồ, panel ảnh, route, admin, GeometryEditor và upload; hiện E2E pass không tự sinh screenshot.
+
+38. PHỤ LỤC ONBOARDING NGẮN
+------------------------------------------------------------
+Đọc `my-node-project/README.md` và xác minh nội dung trong checkout (tệp có trong listing nhưng không đọc được qua công cụ ở lượt này), sau đó `docs/DEVELOPMENT.md`, `docs/TESTING.md`, `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/DATABASE.md`, `docs/LIMITATIONS.md`. Kiểm tra `git status` trước thao tác; không sửa/xóa untracked files chưa rõ chủ sở hữu.
+Yêu cầu được docs nêu: Node.js >=20, npm, Docker Compose. Frontend/backend có package manifest riêng. Lệnh thường dùng trong từng thư mục: `npm run dev`, `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`; backend migration/importer và E2E cần đọc `docs/TESTING.md` trước.
+CẢNH BÁO: backend test global setup drop/create test DB; importer paths có TRUNCATE graph; importer places có hành vi thay thế dữ liệu theo đồng bộ. Chỉ chạy khi URL/service/volume đã được xác minh là disposable. Không dùng DB development/production, không chạy `down -v`/volume prune. Test report hiện hành ghi các guard và cấu hình biệt lập; cấu hình local không được đưa vào tài liệu công khai.
 
 ============================================================
 KẾT THÚC TÀI LIỆU
